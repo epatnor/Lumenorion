@@ -3,15 +3,13 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel, PeftConfig
 import torch
+from config import LORA_DIR, TEMPERATURE, TOP_P, MAX_TOKENS
 
-# Stigar
-LORA_PATH = "./peft/output_gemma_lora"
-
-# Ladda PEFT-konfiguration för att hämta basmodell
-peft_config = PeftConfig.from_pretrained(LORA_PATH)
+# Load PEFT config to determine base model
+peft_config = PeftConfig.from_pretrained(LORA_DIR)
 base_model_name = peft_config.base_model_name_or_path
 
-# Ladda tokenizer och basmodell
+# Load tokenizer and base model
 tokenizer = AutoTokenizer.from_pretrained(base_model_name)
 base_model = AutoModelForCausalLM.from_pretrained(
     base_model_name,
@@ -19,12 +17,12 @@ base_model = AutoModelForCausalLM.from_pretrained(
     device_map="auto"
 )
 
-# Applicera LoRA
-model = PeftModel.from_pretrained(base_model, LORA_PATH)
+# Apply LoRA adapter
+model = PeftModel.from_pretrained(base_model, LORA_DIR)
 model.eval()
 
-# Generera svar
-def generate_reply(prompt, max_new_tokens=200, temperature=0.7):
+# Generate response from a prompt
+def generate_reply(prompt, max_new_tokens=200, temperature=TEMPERATURE):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     inputs = tokenizer(prompt, return_tensors="pt").to(device)
     model.to(device)
@@ -34,7 +32,7 @@ def generate_reply(prompt, max_new_tokens=200, temperature=0.7):
             **inputs,
             max_new_tokens=max_new_tokens,
             temperature=temperature,
-            top_p=0.9,
+            top_p=TOP_P,
             do_sample=True,
             repetition_penalty=1.1
         )
