@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 
 CONVO_DIR = "lora_training/conversations"
-
+os.makedirs(CONVO_DIR, exist_ok=True)
 
 def save_conversation(dialogue):
     """
@@ -15,7 +15,6 @@ def save_conversation(dialogue):
         ...
     ]
     """
-    os.makedirs(CONVO_DIR, exist_ok=True)
     timestamp = datetime.now().isoformat().replace(":", "_")
     filename = f"{timestamp}.json"
     filepath = os.path.join(CONVO_DIR, filename)
@@ -25,7 +24,9 @@ def save_conversation(dialogue):
         "dialogue": dialogue
     }
 
-    with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-    print(f"🗣️  Conversation saved to {filename}")
+    try:
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        print(f"🗣️  Conversation saved to {filename}")
+    except Exception as e:
+        print(f"❌ Failed to save conversation: {e}")
