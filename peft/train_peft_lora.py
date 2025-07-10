@@ -4,7 +4,10 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, Trainer, TrainingA
 from peft import LoraConfig, get_peft_model, TaskType
 from datasets import load_dataset
 import torch
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from config import BASE_MODEL, MAX_TOKENS
+
 
 # File paths
 DATA_PATH = "lora_training/datasets/lumenorion_lora_shuffled.jsonl"
