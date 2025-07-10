@@ -36,13 +36,31 @@ if exist ".venv\Scripts\activate.bat" (
 
 :: == Install dependencies ==
 echo 📦 Installing requirements...
-python -m pip install --upgrade pip >nul 2>&1
-pip install -r requirements.txt >nul 2>&1
+
+if not exist requirements.txt (
+    echo ❌ requirements.txt not found!
+    pause
+    exit /b
+)
+
+python -m pip install --upgrade pip
+
+pip install -r requirements.txt
 if errorlevel 1 (
     echo ❌ Failed to install requirements.
     pause
     exit /b
 )
+
+:: == Ensure vision dependencies ==
+echo 🧩 Ensuring vision dependencies (Pillow + timm)...
+python -c "import PIL, timm" 2>nul
+if errorlevel 1 (
+    echo 📥 Installing missing vision-related packages...
+    pip install pillow timm
+)
+
+echo ✅ All packages installed successfully.
 
 :menu
 cls
