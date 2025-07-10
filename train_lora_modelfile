@@ -1,6 +1,6 @@
 FROM gemma3n
 
-ADAPTER_TYPE lora
+ADAPTER lora
 PARAMETER r 8
 PARAMETER alpha 16
 PARAMETER dropout 0.05
