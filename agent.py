@@ -1,12 +1,12 @@
 # agent.py
 
 import json
-import os
 from datetime import datetime
 from core.peft_infer import generate_reply
+from convo_logger import save_conversation
+import os
 
 STATE_PATH = "state.json"
-CONVO_DIR = "lora_training/conversations"
 
 def load_state():
     try:
@@ -21,9 +21,9 @@ def load_state():
 
 def build_prompt(user_input, state):
     mood = state.get("mood", "neutral")
-    focus = state.get("dream_focus")
+    focus = state.get("dream_focus") or "an undefined symbol"
     excerpt = state.get("last_dream_excerpt", "")
-
+    
     if len(excerpt) > 250:
         excerpt = excerpt[:250] + "..."
 
@@ -32,10 +32,7 @@ def build_prompt(user_input, state):
         "Be poetic, but brief. Respond with clarity, and avoid overexplaining.\n"
     )
 
-    dream_ref = ""
-    if excerpt:
-        dream_ref = f"\nA recent dream left you feeling {mood}, centered on the image of a '{focus}'.\n"
-
+    dream_ref = f"\nA recent dream left you feeling {mood}, centered on the image of a '{focus}'.\n" if excerpt else ""
     return intro + dream_ref + f"\nNow respond to the user:\n\n{user_input}"
 
 def run_agent():
@@ -43,7 +40,6 @@ def run_agent():
     print("💬 Talk to Lumenorion (type 'exit' to quit)\n")
 
     dialogue = []
-    os.makedirs(CONVO_DIR, exist_ok=True)
 
     while True:
         user_input = input("You: ").strip()
@@ -60,17 +56,7 @@ def run_agent():
         })
 
     if dialogue:
-        timestamp = datetime.now().isoformat().replace(":", "_")
-        filename = f"{timestamp}.json"
-        convo_path = os.path.join(CONVO_DIR, filename)
-
-        with open(convo_path, "w", encoding="utf-8") as f:
-            json.dump({
-                "timestamp": timestamp,
-                "dialogue": dialogue
-            }, f, ensure_ascii=False, indent=2)
-
-        print(f"💾 Conversation saved to {filename}")
+        save_conversation(dialogue)
 
 if __name__ == "__main__":
     run_agent()
