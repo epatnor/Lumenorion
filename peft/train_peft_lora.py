@@ -30,8 +30,10 @@ config = LoraConfig(
     r=8,
     lora_dropout=0.05,
     bias="none",
-    task_type=TaskType.CAUSAL_LM
+    task_type=TaskType.CAUSAL_LM,
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]
 )
+
 lora_model = get_peft_model(model, config)
 
 
