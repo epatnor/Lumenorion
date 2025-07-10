@@ -3,7 +3,7 @@
 import random
 import datetime
 from memory import save_dream
-from ollama import chat_with_model  # Du skapar denna i core senare
+from core.ollama import chat_with_model  # Korrekt sökväg till lokalt ollama.py
 
 
 # Lista med ordkällor – kan bytas ut mot RSS, API eller slumpfiler i framtiden
