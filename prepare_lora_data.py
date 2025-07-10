@@ -16,10 +16,15 @@ def analyze_and_shuffle():
     with open(DATASET_PATH, "r", encoding="utf-8") as f:
         lines = [json.loads(line.strip()) for line in f if line.strip()]
 
-    # Grundläggande statistik
-    num_entries = len(lines)
-    input_lens = [len(entry["input"]) for entry in lines]
-    output_lens = [len(entry["output"]) for entry in lines]
+    # Filtrera bort trasiga entries
+    valid_lines = [entry for entry in lines if "input" in entry and "output" in entry]
+
+    if len(valid_lines) != len(lines):
+        print(f"⚠️ Filtered out {len(lines) - len(valid_lines)} invalid entries.")
+
+    num_entries = len(valid_lines)
+    input_lens = [len(entry["input"]) for entry in valid_lines]
+    output_lens = [len(entry["output"]) for entry in valid_lines]
 
     stats = {
         "total_entries": num_entries,
@@ -37,14 +42,22 @@ def analyze_and_shuffle():
     print("📊 Dataset stats:")
     for k, v in stats.items():
         print(f"  {k}: {v}")
+    print()
 
     # Shuffle och spara
-    random.shuffle(lines)
+    random.shuffle(valid_lines)
     with open(SHUFFLED_PATH, "w", encoding="utf-8") as f:
-        for entry in lines:
+        for entry in valid_lines:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
-    print(f"✅ Shuffled dataset saved to {SHUFFLED_PATH}")
+    print(f"✅ Shuffled dataset saved to: {os.path.abspath(SHUFFLED_PATH)}")
+
+    # Visa exempel
+    print("\n🔎 First 3 entries:")
+    for i, entry in enumerate(valid_lines[:3]):
+        print(f"\n--- Entry {i+1} ---")
+        print("Input:", entry["input"][:300])
+        print("Output:", entry["output"][:300])
 
 
 if __name__ == "__main__":
