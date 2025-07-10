@@ -1,9 +1,13 @@
 # agent.py
 
 import json
+import os
+from datetime import datetime
 from core.ollama import chat_with_model
 
 STATE_PATH = "state.json"
+CONVO_DIR = "lora_training/conversations"
+
 
 def load_state():
     try:
@@ -22,7 +26,6 @@ def build_prompt(user_input, state):
     focus = state.get("dream_focus")
     excerpt = state.get("last_dream_excerpt", "")
 
-    # Trimma excerpt för att undvika för långa svar
     if len(excerpt) > 250:
         excerpt = excerpt[:250] + "..."
 
@@ -35,21 +38,37 @@ def build_prompt(user_input, state):
     if excerpt:
         dream_ref = f"\nA recent dream left you feeling {mood}, centered on the image of a '{focus}'.\n"
 
-    prompt = intro + dream_ref + f"\nNow respond to the user:\n\n{user_input}"
-    return prompt
+    return intro + dream_ref + f"\nNow respond to the user:\n\n{user_input}"
 
 
 def run_agent():
     state = load_state()
     print("💬 Talk to Lumenorion (type 'exit' to quit)")
+    dialogue = []
+    os.makedirs(CONVO_DIR, exist_ok=True)
+
     while True:
-        user_input = input("You: ")
+        user_input = input("You: ").strip()
         if user_input.lower() in ["exit", "quit"]:
             break
 
         prompt = build_prompt(user_input, state)
         response = chat_with_model(prompt)
         print(f"\nLumenorion: {response}\n")
+
+        # Spara konversationsutbyte
+        dialogue.append({
+            "user": user_input,
+            "lumenorion": response.strip()
+        })
+
+    # Spara hela samtalet vid avslut
+    if dialogue:
+        timestamp = datetime.now().isoformat().replace(":", "_")
+        convo_path = os.path.join(CONVO_DIR, f"{timestamp}.json")
+        with open(convo_path, "w", encoding="utf-8") as f:
+            json.dump({"timestamp": timestamp, "dialogue": dialogue}, f, ensure_ascii=False, indent=2)
+        print(f"💾 Conversation saved to {convo_path}")
 
 
 if __name__ == "__main__":
