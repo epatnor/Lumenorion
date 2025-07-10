@@ -3,6 +3,7 @@ setlocal enabledelayedexpansion
 
 :: == Initial startup ==
 echo 🔧 Starting Lumenorion...
+echo 🔄 Resetting local changes and pulling latest...
 git reset --hard >nul 2>&1
 git pull >nul 2>&1
 
@@ -34,18 +35,18 @@ if exist ".venv\Scripts\activate.bat" (
     exit /b
 )
 
-:: == Install dependencies ==
-echo 📦 Installing requirements...
-
+:: == Upgrade pip & install dependencies ==
+echo 📦 Installing/updating requirements...
 if not exist requirements.txt (
     echo ❌ requirements.txt not found!
     pause
     exit /b
 )
 
-python -m pip install --upgrade pip
-
+python -m pip install --upgrade pip >nul
+echo 🔄 Installing Python dependencies (this may take a moment)...
 pip install -r requirements.txt
+
 if errorlevel 1 (
     echo ❌ Failed to install requirements.
     pause
@@ -56,14 +57,14 @@ if errorlevel 1 (
 echo 🧩 Ensuring vision dependencies (Pillow + timm)...
 python -c "import PIL, timm" 2>nul
 if errorlevel 1 (
-    echo 📥 Installing missing vision-related packages...
+    echo 📥 Installing missing vision packages...
     pip install pillow timm
 )
 
-echo ✅ All packages installed successfully.
+echo ✅ Environment ready.
 
 :menu
-cls
+echo.
 echo ====================================
 echo        🌌  LUMENORION MENU
 echo ====================================
@@ -79,6 +80,7 @@ if "!choice!"=="1" (
     echo.
     echo 💤 Generating new dream and reflecting...
     python main.py || echo ❌ Error running main.py
+    echo.
     pause
     goto menu
 )
@@ -87,14 +89,16 @@ if "!choice!"=="2" (
     echo.
     echo 🧠 Talking to Lumenorion...
     python agent.py || echo ❌ Error running agent.py
+    echo.
     pause
     goto menu
 )
 
 if "!choice!"=="3" (
     echo.
-    echo Training LoRA model...
+    echo 🔬 Training LoRA model...
     python train_lora.py || echo ❌ Failed to train LoRA
+    echo.
     pause
     goto menu
 )
@@ -106,6 +110,7 @@ if "!choice!"=="4" (
 
 :: Invalid option
 echo ❌ Invalid choice. Please enter 1 to 4.
+echo.
 pause
 goto menu
 
