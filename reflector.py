@@ -8,6 +8,7 @@ from core.ollama import chat_with_model
 
 DB_PATH = "lumenorion.db"
 LO_RA_REFLECT_DIR = "lora_training/reflections"
+REFLECT_LOG_DIR = "lora_training/logs_reflect"
 
 
 def get_latest_dream():
@@ -17,11 +18,7 @@ def get_latest_dream():
     row = c.fetchone()
     conn.close()
     if row:
-        return {
-            "id": row[0],
-            "symbols": row[1].split(",") if row[1] else [],
-            "text": row[2] or ""
-        }
+        return {"id": row[0], "symbols": row[1].split(","), "text": row[2]}
     return None
 
 
@@ -40,35 +37,32 @@ def reflect_on_latest_dream():
         f"Summarize the mood and key theme in a short paragraph."
     )
 
+    print("🔍 Reflecting on latest dream...")
     reflection = chat_with_model(prompt)
     mood = extract_mood(reflection)
+    focus_symbol = symbols[0] if symbols else "unknown"
 
-    print("🔍 Reflecting on latest dream...")
     print(f"🧠 Mood: {mood}")
-    print(f"🌌 Focus symbol: {symbols[0] if symbols else 'unknown'}")
+    print(f"🌌 Focus symbol: {focus_symbol}")
 
     save_reflection(dream["id"], symbols, mood, reflection)
+    log_reflection(prompt, reflection, mood, focus_symbol)
 
 
 def extract_mood(text):
-    moods = [
-        "hopeful", "melancholic", "confused",
-        "joyful", "anxious", "nostalgic", "neutral"
-    ]
-    lower = text.lower()
+    moods = ["hopeful", "melancholic", "confused", "joyful", "anxious", "nostalgic", "neutral"]
     for mood in moods:
-        if mood in lower:
+        if mood in text.lower():
             return mood
     return "unclear"
 
 
 def save_reflection(dream_id, symbols, mood, reflection):
     timestamp = datetime.now().isoformat()
+
+    # Spara till LoRA-reflections som JSON
     os.makedirs(LO_RA_REFLECT_DIR, exist_ok=True)
-
     filename = f"{timestamp.replace(':', '_')}.json"
-    filepath = os.path.join(LO_RA_REFLECT_DIR, filename)
-
     data = {
         "timestamp": timestamp,
         "dream_id": dream_id,
@@ -76,8 +70,26 @@ def save_reflection(dream_id, symbols, mood, reflection):
         "mood": mood,
         "reflection": reflection.strip()
     }
-
-    with open(filepath, "w", encoding="utf-8") as f:
+    with open(os.path.join(LO_RA_REFLECT_DIR, filename), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
     print(f"💾 Reflection saved to {filename}")
+
+
+def log_reflection(prompt, reflection, mood, symbol):
+    os.makedirs(REFLECT_LOG_DIR, exist_ok=True)
+    timestamp = datetime.now().isoformat().replace(":", "_")
+    entry = {
+        "timestamp": timestamp,
+        "prompt": prompt,
+        "response": reflection.strip(),
+        "mood": mood,
+        "focus_symbol": symbol
+    }
+
+    with open(os.path.join(REFLECT_LOG_DIR, f"{timestamp}.json"), "w", encoding="utf-8") as f:
+        json.dump(entry, f, ensure_ascii=False, indent=2)
+
+
+if __name__ == "__main__":
+    reflect_on_latest_dream()
