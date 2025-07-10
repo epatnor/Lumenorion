@@ -1,30 +1,52 @@
 @echo off
 setlocal
 
-echo 🔧 Checking environment...
-
-:: Rensa lokala ändringar och dra senaste från GitHub
-echo 🌐 Syncing with GitHub (resetting local changes)...
+echo 🔧 Starting Lumenorion...
 git reset --hard >nul
 git pull
 
-:: Skapa virtuell miljö om den inte finns
+:: Setup environment
 if not exist ".venv" (
     echo 🐍 Creating virtual environment...
     python -m venv .venv
 )
-
-:: Aktivera miljön
 call .venv\Scripts\activate.bat
 
-:: Installera beroenden
-echo 📦 Installing required packages...
+echo 📦 Installing requirements...
 python -m pip install --upgrade pip >nul
 pip install -r requirements.txt
 
-:: Kör huvudprogrammet
-echo 🌙 Launching Lumenorion dream loop...
-python main.py
+:menu
+cls
+echo ====================================
+echo         🌌 LUMENORION MENU
+echo ====================================
+echo 1. Generate new dream & reflect
+echo 2. Talk to Lumenorion
+echo 3. Exit
+echo.
+
+set /p choice=Choose an option [1-3]:
+
+if "%choice%"=="1" (
+    echo.
+    echo 💤 Dreaming and reflecting...
+    python main.py
+    pause
+    goto menu
+) else if "%choice%"=="2" (
+    echo.
+    echo 🧠 Connecting to Lumenorion...
+    python agent.py
+    pause
+    goto menu
+) else if "%choice%"=="3" (
+    echo 🛑 Exiting.
+    exit
+) else (
+    echo ❌ Invalid choice.
+    pause
+    goto menu
+)
 
 endlocal
-pause
