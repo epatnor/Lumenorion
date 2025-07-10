@@ -79,4 +79,39 @@ def extract_mood(text):
 
 def save_reflection(dream_id, symbols, mood, reflection):
     timestamp = datetime.now().isoformat()
-    os.makedirs(
+    os.makedirs(LO_RA_REFLECT_DIR, exist_ok=True)
+    filename = f"{timestamp.replace(':', '_')}.json"
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO reflections (timestamp, dream_id, symbols, mood, reflection)
+        VALUES (?, ?, ?, ?, ?)
+    """, (timestamp, dream_id, ",".join(symbols), mood, reflection.strip()))
+    conn.commit()
+    conn.close()
+    data = {
+        "timestamp": timestamp,
+        "dream_id": dream_id,
+        "symbols": symbols,
+        "mood": mood,
+        "reflection": reflection.strip()
+    }
+    with open(os.path.join(LO_RA_REFLECT_DIR, filename), "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    print(f"💾 Reflection saved to DB and {filename}")
+
+def log_reflection(prompt, reflection, mood, symbol):
+    os.makedirs(REFLECT_LOG_DIR, exist_ok=True)
+    timestamp = datetime.now().isoformat().replace(":", "_")
+    entry = {
+        "timestamp": timestamp,
+        "prompt": prompt,
+        "response": reflection.strip(),
+        "mood": mood,
+        "focus_symbol": symbol
+    }
+    with open(os.path.join(REFLECT_LOG_DIR, f"{timestamp}.json"), "w", encoding="utf-8") as f:
+        json.dump(entry, f, ensure_ascii=False, indent=2)
+
+if __name__ == "__main__":
+    reflect_on_latest_dream()
