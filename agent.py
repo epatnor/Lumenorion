@@ -3,11 +3,10 @@
 import json
 import os
 from datetime import datetime
-from core.ollama import chat_with_model
+from core.peft_infer import generate_reply
 
 STATE_PATH = "state.json"
 CONVO_DIR = "lora_training/conversations"
-
 
 def load_state():
     try:
@@ -20,13 +19,11 @@ def load_state():
             "last_dream_excerpt": ""
         }
 
-
 def build_prompt(user_input, state):
     mood = state.get("mood", "neutral")
     focus = state.get("dream_focus")
     excerpt = state.get("last_dream_excerpt", "")
 
-    # Trimma drömmen för att undvika för långa svar
     if len(excerpt) > 250:
         excerpt = excerpt[:250] + "..."
 
@@ -41,7 +38,6 @@ def build_prompt(user_input, state):
 
     return intro + dream_ref + f"\nNow respond to the user:\n\n{user_input}"
 
-
 def run_agent():
     state = load_state()
     print("💬 Talk to Lumenorion (type 'exit' to quit)\n")
@@ -55,7 +51,7 @@ def run_agent():
             break
 
         prompt = build_prompt(user_input, state)
-        response = chat_with_model(prompt)
+        response = generate_reply(prompt)
         print(f"\nLumenorion: {response.strip()}\n")
 
         dialogue.append({
@@ -63,7 +59,6 @@ def run_agent():
             "lumenorion": response.strip()
         })
 
-    # Spara hela konversationen
     if dialogue:
         timestamp = datetime.now().isoformat().replace(":", "_")
         filename = f"{timestamp}.json"
@@ -76,7 +71,6 @@ def run_agent():
             }, f, ensure_ascii=False, indent=2)
 
         print(f"💾 Conversation saved to {filename}")
-
 
 if __name__ == "__main__":
     run_agent()
