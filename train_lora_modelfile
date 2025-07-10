@@ -1,0 +1,11 @@
+FROM gemma3n
+
+ADAPTER_TYPE lora
+PARAMETER r 8
+PARAMETER alpha 16
+PARAMETER dropout 0.05
+PARAMETER bias none
+
+TRAIN_DATA ./lora_training/datasets/lumenorion_lora_shuffled.jsonl
+
+TEMPLATE """{{ input }}\n{{ output }}"""
