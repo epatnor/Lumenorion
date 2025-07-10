@@ -1,1 +1,1 @@
-gemma3n
+peft:google/gemma-7b-it
