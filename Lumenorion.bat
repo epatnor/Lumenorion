@@ -35,18 +35,19 @@ if exist ".venv\Scripts\activate.bat" (
     exit /b
 )
 
-:: == Upgrade pip & install dependencies ==
-echo 📦 Installing/updating requirements...
+:: == Upgrade pip ==
+echo 🔼 Upgrading pip...
+python -m pip install --upgrade pip >nul 2>&1
+
+:: == Install core dependencies ==
+echo 📦 Installing/updating requirements with CUDA support...
 if not exist requirements.txt (
     echo ❌ requirements.txt not found!
     pause
     exit /b
 )
 
-python -m pip install --upgrade pip >nul
-echo 🔄 Installing Python dependencies (this may take a moment)...
-pip install -r requirements.txt
-
+pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cu121
 if errorlevel 1 (
     echo ❌ Failed to install requirements.
     pause
@@ -54,13 +55,14 @@ if errorlevel 1 (
 )
 
 :: == Ensure vision dependencies ==
-echo 🧩 Ensuring vision dependencies (Pillow + timm)...
+echo 🧩 Verifying vision packages (Pillow + timm)...
 python -c "import PIL, timm" 2>nul
 if errorlevel 1 (
     echo 📥 Installing missing vision packages...
     pip install pillow timm
 )
 
+echo.
 echo ✅ Environment ready.
 
 :menu
