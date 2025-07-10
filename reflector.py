@@ -11,39 +11,26 @@ LO_RA_REFLECT_DIR = "lora_training/reflections"
 REFLECT_LOG_DIR = "lora_training/logs_reflect"
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS reflections (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
-            dream_id INTEGER,
-            symbols TEXT,
-            mood TEXT,
-            reflection TEXT
-        )
-    """)
-    c.execute("PRAGMA table_info(reflections)")
-    columns = [row[1] for row in c.fetchall()]
-    if "symbols" not in columns:
-        print("⚙️  Adding missing column: 'symbols'")
-        c.execute("ALTER TABLE reflections ADD COLUMN symbols TEXT")
-    if "mood" not in columns:
-        print("⚙️  Adding missing column: 'mood'")
-        c.execute("ALTER TABLE reflections ADD COLUMN mood TEXT")
-    if "reflection" not in columns:
-        print("⚙️  Adding missing column: 'reflection'")
-        c.execute("ALTER TABLE reflections ADD COLUMN reflection TEXT")
-    conn.commit()
-    conn.close()
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS reflections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                dream_id INTEGER,
+                symbols TEXT,
+                mood TEXT,
+                reflection TEXT
+            )
+        """)
+        conn.commit()
     print("✅ Reflections table ready.")
 
 def get_latest_dream():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT id, symbols, text FROM dreams ORDER BY id DESC LIMIT 1")
-    row = c.fetchone()
-    conn.close()
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute("SELECT id, symbols, text FROM dreams ORDER BY id DESC LIMIT 1")
+        row = c.fetchone()
     if row:
         return {"id": row[0], "symbols": row[1].split(","), "text": row[2]}
     return None
@@ -54,6 +41,7 @@ def reflect_on_latest_dream():
     if not dream:
         print("⚠️ No dream found to reflect on.")
         return
+
     symbols = dream["symbols"]
     excerpt = dream["text"][:300].replace("\n", " ").strip()
     prompt = (
@@ -61,8 +49,14 @@ def reflect_on_latest_dream():
         f"Based on the symbols ({', '.join(symbols)}), what emotional state might the dream convey? "
         f"Summarize the mood and key theme in a short paragraph."
     )
+
     print("🔍 Reflecting on latest dream...")
-    reflection = generate_reply(prompt)
+    try:
+        reflection = generate_reply(prompt)
+    except Exception as e:
+        print(f"❌ Failed to generate reflection: {e}")
+        return
+
     mood = extract_mood(reflection)
     focus_symbol = symbols[0] if symbols else "unknown"
     print(f"🧠 Mood: {mood}")
@@ -81,14 +75,15 @@ def save_reflection(dream_id, symbols, mood, reflection):
     timestamp = datetime.now().isoformat()
     os.makedirs(LO_RA_REFLECT_DIR, exist_ok=True)
     filename = f"{timestamp.replace(':', '_')}.json"
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-        INSERT INTO reflections (timestamp, dream_id, symbols, mood, reflection)
-        VALUES (?, ?, ?, ?, ?)
-    """, (timestamp, dream_id, ",".join(symbols), mood, reflection.strip()))
-    conn.commit()
-    conn.close()
+
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO reflections (timestamp, dream_id, symbols, mood, reflection)
+            VALUES (?, ?, ?, ?, ?)
+        """, (timestamp, dream_id, ",".join(symbols), mood, reflection.strip()))
+        conn.commit()
+
     data = {
         "timestamp": timestamp,
         "dream_id": dream_id,
@@ -96,9 +91,13 @@ def save_reflection(dream_id, symbols, mood, reflection):
         "mood": mood,
         "reflection": reflection.strip()
     }
-    with open(os.path.join(LO_RA_REFLECT_DIR, filename), "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    print(f"💾 Reflection saved to DB and {filename}")
+
+    try:
+        with open(os.path.join(LO_RA_REFLECT_DIR, filename), "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        print(f"💾 Reflection saved to DB and {filename}")
+    except Exception as e:
+        print(f"❌ Failed to save reflection to file: {e}")
 
 def log_reflection(prompt, reflection, mood, symbol):
     os.makedirs(REFLECT_LOG_DIR, exist_ok=True)
@@ -110,8 +109,12 @@ def log_reflection(prompt, reflection, mood, symbol):
         "mood": mood,
         "focus_symbol": symbol
     }
-    with open(os.path.join(REFLECT_LOG_DIR, f"{timestamp}.json"), "w", encoding="utf-8") as f:
-        json.dump(entry, f, ensure_ascii=False, indent=2)
+
+    try:
+        with open(os.path.join(REFLECT_LOG_DIR, f"{timestamp}.json"), "w", encoding="utf-8") as f:
+            json.dump(entry, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"❌ Failed to write log entry: {e}")
 
 if __name__ == "__main__":
     reflect_on_latest_dream()
