@@ -4,5 +4,4 @@ parameter r 8
 parameter alpha 16
 parameter dropout 0.05
 parameter bias none
-train_data lora_training/datasets/lumenorion_lora_shuffled.jsonl
 template """{{ input }}\n{{ output }}"""
