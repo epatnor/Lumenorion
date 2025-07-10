@@ -42,11 +42,20 @@ train_ds = load_dataset("json", data_files=DATA_PATH)["train"]
 # == Tokenization function ==
 def tokenize(batch):
     texts = []
-    for ex in batch:
-        input_text = " ".join(ex["input"]) if isinstance(ex["input"], list) else ex["input"]
-        output_text = " ".join(ex["output"]) if isinstance(ex["output"], list) else ex["output"]
+    for input_text, output_text in zip(batch["input"], batch["output"]):
+        if isinstance(input_text, list):
+            input_text = " ".join(input_text)
+        if isinstance(output_text, list):
+            output_text = " ".join(output_text)
         texts.append(f"{input_text}\n{output_text}")
-    return tokenizer(texts, truncation=True, max_length=MAX_TOKENS, padding="max_length")
+    
+    return tokenizer(
+        texts,
+        truncation=True,
+        max_length=MAX_TOKENS,
+        padding="max_length"
+    )
+
 
 # == Apply tokenizer ==
 train_ds = train_ds.map(tokenize, batched=True)
