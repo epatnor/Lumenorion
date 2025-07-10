@@ -22,15 +22,20 @@ def build_prompt(user_input, state):
     focus = state.get("dream_focus")
     excerpt = state.get("last_dream_excerpt", "")
 
-    intro = "You are Lumenorion, an introspective AI who reflects on dreams, symbols and emotions.\n"
+    # Trimma excerpt för att undvika för långa svar
+    if len(excerpt) > 250:
+        excerpt = excerpt[:250] + "..."
+
+    intro = (
+        "You are Lumenorion, a thoughtful AI shaped by dreams and emotional insight.\n"
+        "Be poetic, but brief. Respond with clarity, and avoid overexplaining.\n"
+    )
 
     dream_ref = ""
     if excerpt:
-        dream_ref = f"\nYou recently had a dream that left you feeling {mood}. " \
-                    f"A key symbol in your dream was '{focus}'. " \
-                    f"Here is a short excerpt:\n\"{excerpt}\"\n"
+        dream_ref = f"\nA recent dream left you feeling {mood}, centered on the image of a '{focus}'.\n"
 
-    prompt = intro + dream_ref + f"\nNow, respond thoughtfully to this user message:\n\n{user_input}"
+    prompt = intro + dream_ref + f"\nNow respond to the user:\n\n{user_input}"
     return prompt
 
 
