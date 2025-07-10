@@ -11,6 +11,43 @@ LO_RA_REFLECT_DIR = "lora_training/reflections"
 REFLECT_LOG_DIR = "lora_training/logs_reflect"
 
 
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # Skapa tabellen om den inte finns
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS reflections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT,
+            dream_id INTEGER,
+            symbols TEXT,
+            mood TEXT,
+            reflection TEXT
+        )
+    """)
+
+    # Lägg till kolumner om de saknas
+    c.execute("PRAGMA table_info(reflections)")
+    columns = [row[1] for row in c.fetchall()]
+
+    if "symbols" not in columns:
+        print("⚙️  Adding missing column: 'symbols'")
+        c.execute("ALTER TABLE reflections ADD COLUMN symbols TEXT")
+
+    if "mood" not in columns:
+        print("⚙️  Adding missing column: 'mood'")
+        c.execute("ALTER TABLE reflections ADD COLUMN mood TEXT")
+
+    if "reflection" not in columns:
+        print("⚙️  Adding missing column: 'reflection'")
+        c.execute("ALTER TABLE reflections ADD COLUMN reflection TEXT")
+
+    conn.commit()
+    conn.close()
+    print("✅ Reflections table ready.")
+
+
 def get_latest_dream():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -23,6 +60,8 @@ def get_latest_dream():
 
 
 def reflect_on_latest_dream():
+    init_db()  # Säkerställ att reflektions-tabellen är redo
+
     dream = get_latest_dream()
     if not dream:
         print("⚠️ No dream found to reflect on.")
@@ -59,10 +98,20 @@ def extract_mood(text):
 
 def save_reflection(dream_id, symbols, mood, reflection):
     timestamp = datetime.now().isoformat()
-
-    # Spara till LoRA-reflections som JSON
     os.makedirs(LO_RA_REFLECT_DIR, exist_ok=True)
     filename = f"{timestamp.replace(':', '_')}.json"
+
+    # Spara till databas
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO reflections (timestamp, dream_id, symbols, mood, reflection)
+        VALUES (?, ?, ?, ?, ?)
+    """, (timestamp, dream_id, ",".join(symbols), mood, reflection.strip()))
+    conn.commit()
+    conn.close()
+
+    # Spara till JSON
     data = {
         "timestamp": timestamp,
         "dream_id": dream_id,
@@ -73,7 +122,7 @@ def save_reflection(dream_id, symbols, mood, reflection):
     with open(os.path.join(LO_RA_REFLECT_DIR, filename), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-    print(f"💾 Reflection saved to {filename}")
+    print(f"💾 Reflection saved to DB and {filename}")
 
 
 def log_reflection(prompt, reflection, mood, symbol):
