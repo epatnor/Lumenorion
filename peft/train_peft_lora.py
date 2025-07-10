@@ -40,22 +40,26 @@ lora_model = get_peft_model(model, config)
 train_ds = load_dataset("json", data_files=DATA_PATH)["train"]
 
 # == Tokenization function ==
-def tokenize(example):
-    input_text = example["input"]
-    output_text = example["output"]
+def tokenize(batch):
+    input_texts = []
+    for example in batch:
+        input_text = example["input"]
+        output_text = example["output"]
 
-    # Convert list to string if needed
-    if isinstance(input_text, list):
-        input_text = " ".join(input_text)
-    if isinstance(output_text, list):
-        output_text = " ".join(output_text)
+        if isinstance(input_text, list):
+            input_text = " ".join(input_text)
+        if isinstance(output_text, list):
+            output_text = " ".join(output_text)
+
+        input_texts.append(input_text + "\n" + output_text)
 
     return tokenizer(
-        input_text + "\n" + output_text,
+        input_texts,
         truncation=True,
         max_length=MAX_TOKENS,
         padding="max_length"
     )
+
 
 # == Apply tokenizer ==
 train_ds = train_ds.map(tokenize, batched=True)
