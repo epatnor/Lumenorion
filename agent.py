@@ -26,6 +26,7 @@ def build_prompt(user_input, state):
     focus = state.get("dream_focus")
     excerpt = state.get("last_dream_excerpt", "")
 
+    # Trimma drömmen för att undvika för långa svar
     if len(excerpt) > 250:
         excerpt = excerpt[:250] + "..."
 
@@ -43,7 +44,8 @@ def build_prompt(user_input, state):
 
 def run_agent():
     state = load_state()
-    print("💬 Talk to Lumenorion (type 'exit' to quit)")
+    print("💬 Talk to Lumenorion (type 'exit' to quit)\n")
+
     dialogue = []
     os.makedirs(CONVO_DIR, exist_ok=True)
 
@@ -54,21 +56,26 @@ def run_agent():
 
         prompt = build_prompt(user_input, state)
         response = chat_with_model(prompt)
-        print(f"\nLumenorion: {response}\n")
+        print(f"\nLumenorion: {response.strip()}\n")
 
-        # Spara konversationsutbyte
         dialogue.append({
             "user": user_input,
             "lumenorion": response.strip()
         })
 
-    # Spara hela samtalet vid avslut
+    # Spara hela konversationen
     if dialogue:
         timestamp = datetime.now().isoformat().replace(":", "_")
-        convo_path = os.path.join(CONVO_DIR, f"{timestamp}.json")
+        filename = f"{timestamp}.json"
+        convo_path = os.path.join(CONVO_DIR, filename)
+
         with open(convo_path, "w", encoding="utf-8") as f:
-            json.dump({"timestamp": timestamp, "dialogue": dialogue}, f, ensure_ascii=False, indent=2)
-        print(f"💾 Conversation saved to {convo_path}")
+            json.dump({
+                "timestamp": timestamp,
+                "dialogue": dialogue
+            }, f, ensure_ascii=False, indent=2)
+
+        print(f"💾 Conversation saved to {filename}")
 
 
 if __name__ == "__main__":
