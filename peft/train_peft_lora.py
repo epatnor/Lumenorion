@@ -4,21 +4,21 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, Trainer, TrainingA
 from peft import LoraConfig, get_peft_model, TaskType
 from datasets import load_dataset
 import torch
+from config import BASE_MODEL, MAX_TOKENS
 
-# Modell och datavägar
-MODEL_ID = "google/gemma-3b-it"
-DATA_PATH = "../lora_training/datasets/lumenorion_lora_shuffled.jsonl"
-OUTPUT_DIR = "./output_gemma_lora"
+# File paths
+DATA_PATH = "lora_training/datasets/lumenorion_lora_shuffled.jsonl"
+OUTPUT_DIR = "peft/output_gemma_lora"
 
-# Ladda tokenizer och modell
-tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
+# Load tokenizer and base model
+tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
 model = AutoModelForCausalLM.from_pretrained(
-    MODEL_ID,
+    BASE_MODEL,
     device_map="auto",
     torch_dtype=torch.float16
 )
 
-# LoRA-konfiguration
+# LoRA config
 config = LoraConfig(
     r=8,
     alpha=16,
@@ -28,20 +28,20 @@ config = LoraConfig(
 )
 lora_model = get_peft_model(model, config)
 
-# Ladda och tokenisera dataset
+# Load and tokenize dataset
 train_ds = load_dataset("json", data_files=DATA_PATH)["train"]
 
 def tokenize(example):
     return tokenizer(
         example["input"] + "\n" + example["output"],
         truncation=True,
-        max_length=1024,
+        max_length=MAX_TOKENS,
         padding="max_length"
     )
 
 train_ds = train_ds.map(tokenize, batched=True)
 
-# Träningsparametrar
+# Training parameters
 training_args = TrainingArguments(
     output_dir=OUTPUT_DIR,
     per_device_train_batch_size=4,
@@ -52,7 +52,7 @@ training_args = TrainingArguments(
     logging_steps=10,
 )
 
-# Kör träningen
+# Train model
 trainer = Trainer(
     model=lora_model,
     args=training_args,
@@ -60,6 +60,6 @@ trainer = Trainer(
 )
 trainer.train()
 
-# Spara modellen
+# Save LoRA adapter
 lora_model.save_pretrained(OUTPUT_DIR)
 print(f"✅ LoRA trained and saved in {OUTPUT_DIR}")
