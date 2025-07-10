@@ -1,11 +1,12 @@
 # train_lora.py
 
-# Trains a LoRA model using PEFT + Transformers, with dataset preparation and logging
+# Trains a LoRA model using PEFT + Transformers, including dataset preparation and logging
 
 import os
 import subprocess
 import sys
 import json
+import time
 from datetime import datetime
 
 # Log file path
@@ -26,22 +27,25 @@ def prepare_dataset():
 # Run LoRA training script
 def train_peft_lora():
     print("🚀 Training LoRA model with PEFT...")
+    start = time.time()
     result = subprocess.run([sys.executable, "peft/train_peft_lora.py"], capture_output=True, text=True)
+    duration = time.time() - start
     if result.returncode != 0:
         print("❌ Failed to train LoRA model:")
         print(result.stderr)
-        return False, result.stderr
+        return False, result.stderr, duration
     print("🎉 LoRA model trained and saved!")
-    return True, None
+    return True, None, duration
 
 # Save training metadata to JSON log file
-def log_training(success, stage, error=None):
+def log_training(success, stage, error=None, duration=None):
     log = {
         "timestamp": datetime.now().isoformat(),
         "model": "gemma-3n (LoRA)",
         "dataset": "lumenorion_lora_shuffled.jsonl",
         "stage": stage,
         "success": success,
+        "duration_seconds": round(duration, 2) if duration else None,
         "error": error.strip() if error else None
     }
     with open(LOG_PATH, "w", encoding="utf-8") as f:
@@ -55,9 +59,9 @@ if __name__ == "__main__":
         log_training(False, "prepare_dataset", error)
         sys.exit(1)
 
-    ok, error = train_peft_lora()
+    ok, error, duration = train_peft_lora()
     if not ok:
-        log_training(False, "train_peft_lora", error)
+        log_training(False, "train_peft_lora", error, duration)
         sys.exit(1)
 
-    log_training(True, "done")
+    log_training(True, "done", duration=duration)
