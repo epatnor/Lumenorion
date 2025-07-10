@@ -49,7 +49,7 @@ cls
 echo ====================================
 echo        🌌  LUMENORION MENU
 echo ====================================
-echo 1. Generate new dream & reflect
+echo 1. Generate new dream ^& reflect
 echo 2. Talk to Lumenorion
 echo 3. 🔬 Train LoRA using PEFT (HuggingFace)
 echo 4. ⚡ Activate LoRA model
