@@ -51,7 +51,7 @@ echo        🌌  LUMENORION MENU
 echo ====================================
 echo 1. Generate new dream ^& reflect
 echo 2. Talk to Lumenorion
-echo 3. 🔬 Train LoRA using PEFT (HuggingFace)
+echo 3. Train LoRA using PEFT
 echo 4. Exit
 echo.
 
@@ -75,7 +75,7 @@ if "!choice!"=="2" (
 
 if "!choice!"=="3" (
     echo.
-    echo 🔬 Training LoRA with PEFT (HuggingFace)...
+    echo Training LoRA model...
     python train_lora.py || echo ❌ Failed to train LoRA
     pause
     goto menu
