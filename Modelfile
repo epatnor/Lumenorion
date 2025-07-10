@@ -3,5 +3,4 @@ adapter lora
 parameter r 8
 parameter alpha 16
 parameter dropout 0.05
-parameter bias none
 template """{{ input }}\n{{ output }}"""
