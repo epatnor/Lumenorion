@@ -1,20 +1,38 @@
 # core/ollama.py
 
 import subprocess
-import json
+import os
 
-# == Modellinställningar ==
-BASE_MODEL = "gemma3n"           # T.ex. "gemma3n", "mistral", "phi3"
-LORA_NAME = "lumenorion-lora"    # Din finetunade LoRA (lägg till .mod om det behövs)
-USE_LORA = True                  # Slå på/av LoRA här
+MODEL_FILE = os.path.join("core", "model.txt")
+DEFAULT_MODEL = "gemma3n"
 
 def get_model_name():
-    return f"{BASE_MODEL}:{LORA_NAME}" if USE_LORA else BASE_MODEL
+    try:
+        with open(MODEL_FILE, "r", encoding="utf-8") as f:
+            model = f.read().strip()
+            return model if model else DEFAULT_MODEL
+    except FileNotFoundError:
+        return DEFAULT_MODEL
+
+
+def model_exists_locally(model_name):
+    result = subprocess.run(
+        ["ollama", "list"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL
+    )
+    return model_name in result.stdout.decode("utf-8")
 
 
 def chat_with_model(prompt):
     try:
         model_name = get_model_name()
+
+        if ":" in model_name and not model_exists_locally(model_name):
+            print(f"⚠️ LoRA model '{model_name}' not found locally. Falling back to base model.")
+            model_name = model_name.split(":")[0]
+
+        print(f"🧠 Using model: {model_name}")
 
         result = subprocess.run(
             ["ollama", "run", model_name],
