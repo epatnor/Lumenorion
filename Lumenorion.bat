@@ -54,6 +54,7 @@ echo 2. Talk to Lumenorion
 echo 3. 🔬 Train LoRA from memory
 echo 4. ⚡ Activate LoRA model
 echo 5. Exit
+echo 6. 🔬 Train LoRA using PEFT (HuggingFace)
 echo.
 
 set /p choice=Choose an option [1-5]: 
@@ -95,6 +96,15 @@ if "!choice!"=="4" (
 if "!choice!"=="5" (
     echo 🛑 Exiting Lumenorion.
     goto end
+)
+
+if "!choice!"=="6" (
+    echo 🔬 Training LoRA with PEFT...
+    cd peft_lora
+    python train_peft_lora.py
+    cd ..
+    pause
+    goto menu
 )
 
 :: Invalid option
