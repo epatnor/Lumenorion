@@ -17,7 +17,11 @@ def get_latest_dream():
     row = c.fetchone()
     conn.close()
     if row:
-        return {"id": row[0], "symbols": row[1].split(","), "text": row[2]}
+        return {
+            "id": row[0],
+            "symbols": row[1].split(",") if row[1] else [],
+            "text": row[2] or ""
+        }
     return None
 
 
@@ -47,19 +51,24 @@ def reflect_on_latest_dream():
 
 
 def extract_mood(text):
-    moods = ["hopeful", "melancholic", "confused", "joyful", "anxious", "nostalgic", "neutral"]
+    moods = [
+        "hopeful", "melancholic", "confused",
+        "joyful", "anxious", "nostalgic", "neutral"
+    ]
+    lower = text.lower()
     for mood in moods:
-        if mood in text.lower():
+        if mood in lower:
             return mood
     return "unclear"
 
 
 def save_reflection(dream_id, symbols, mood, reflection):
     timestamp = datetime.now().isoformat()
-
-    # Spara till LoRA-reflections som JSON
     os.makedirs(LO_RA_REFLECT_DIR, exist_ok=True)
+
     filename = f"{timestamp.replace(':', '_')}.json"
+    filepath = os.path.join(LO_RA_REFLECT_DIR, filename)
+
     data = {
         "timestamp": timestamp,
         "dream_id": dream_id,
@@ -67,7 +76,8 @@ def save_reflection(dream_id, symbols, mood, reflection):
         "mood": mood,
         "reflection": reflection.strip()
     }
-    with open(os.path.join(LO_RA_REFLECT_DIR, filename), "w", encoding="utf-8") as f:
+
+    with open(filepath, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
     print(f"💾 Reflection saved to {filename}")
