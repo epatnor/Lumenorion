@@ -12,6 +12,8 @@ LO_RA_DREAMS_DIR = "lora_training/dreams"
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+
+    # Skapa tabellen om den inte finns
     c.execute("""
         CREATE TABLE IF NOT EXISTS dreams (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,8 +23,22 @@ def init_db():
             prompt TEXT
         )
     """)
+
+    # Kolla efter saknade kolumner och lägg till dem vid behov
+    c.execute("PRAGMA table_info(dreams)")
+    columns = [row[1] for row in c.fetchall()]
+
+    if "symbols" not in columns:
+        print("⚙️  Adding missing column: 'symbols'")
+        c.execute("ALTER TABLE dreams ADD COLUMN symbols TEXT")
+
+    if "prompt" not in columns:
+        print("⚙️  Adding missing column: 'prompt'")
+        c.execute("ALTER TABLE dreams ADD COLUMN prompt TEXT")
+
     conn.commit()
     conn.close()
+    print("✅ Database ready.")
 
 
 def save_dream(text, symbols, prompt=""):
