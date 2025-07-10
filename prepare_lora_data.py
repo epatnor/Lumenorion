@@ -3,20 +3,68 @@
 import os
 import json
 import random
+from glob import glob
+from datetime import datetime
 
-DATASET_PATH = "lora_training/datasets/lumenorion_lora.jsonl"
-SHUFFLED_PATH = "lora_training/datasets/lumenorion_lora_shuffled.jsonl"
-STATS_PATH = "lora_training/datasets/stats.json"
+DATA_DIR = "lora_training"
+DATASET_PATH = os.path.join(DATA_DIR, "datasets/lumenorion_lora.jsonl")
+SHUFFLED_PATH = os.path.join(DATA_DIR, "datasets/lumenorion_lora_shuffled.jsonl")
+STATS_PATH = os.path.join(DATA_DIR, "datasets/stats.json")
+
+def collect_entries():
+    entries = []
+
+    # Dreams
+    for path in glob(os.path.join(DATA_DIR, "dreams", "*.json")):
+        with open(path, encoding="utf-8") as f:
+            obj = json.load(f)
+            entries.append({
+                "input": f"Dream prompt:\n{obj['prompt']}",
+                "output": obj["text"].strip()
+            })
+
+    # Reflections
+    for path in glob(os.path.join(DATA_DIR, "reflections", "*.json")):
+        with open(path, encoding="utf-8") as f:
+            obj = json.load(f)
+            summary = f"Mood: {obj.get('mood', 'unknown')} / Symbols: {', '.join(obj.get('symbols', []))}"
+            entries.append({
+                "input": f"Reflect on the dream summary:\n{summary}",
+                "output": obj["reflection"].strip()
+            })
+
+    # Conversations
+    for path in glob(os.path.join(DATA_DIR, "conversations", "*.json")):
+        with open(path, encoding="utf-8") as f:
+            obj = json.load(f)
+            for turn in obj.get("dialogue", []):
+                user = turn.get("user")
+                lumenorion = turn.get("lumenorion")
+                if user and lumenorion:
+                    entries.append({
+                        "input": f"User: {user.strip()}",
+                        "output": lumenorion.strip()
+                    })
+
+    print(f"🧠 Collected {len(entries)} raw data entries.")
+    return entries
+
+def save_dataset(entries):
+    os.makedirs(os.path.dirname(DATASET_PATH), exist_ok=True)
+    with open(DATASET_PATH, "w", encoding="utf-8") as f:
+        for entry in entries:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    print(f"💾 Dataset written to {DATASET_PATH}")
 
 def analyze_and_shuffle():
     if not os.path.exists(DATASET_PATH):
-        print(f"❌ Dataset not found at {DATASET_PATH}")
-        return
+        print("📦 No existing dataset found, creating one from raw logs...")
+        entries = collect_entries()
+        save_dataset(entries)
 
     with open(DATASET_PATH, "r", encoding="utf-8") as f:
         lines = [json.loads(line.strip()) for line in f if line.strip()]
 
-    # Filtrera bort trasiga entries
     valid_lines = [entry for entry in lines if "input" in entry and "output" in entry]
 
     if len(valid_lines) != len(lines):
@@ -34,8 +82,6 @@ def analyze_and_shuffle():
         "max_output_length": max(output_lens, default=0)
     }
 
-    # Spara statistik
-    os.makedirs(os.path.dirname(STATS_PATH), exist_ok=True)
     with open(STATS_PATH, "w", encoding="utf-8") as f:
         json.dump(stats, f, indent=2)
 
@@ -44,7 +90,6 @@ def analyze_and_shuffle():
         print(f"  {k}: {v}")
     print()
 
-    # Shuffle och spara
     random.shuffle(valid_lines)
     with open(SHUFFLED_PATH, "w", encoding="utf-8") as f:
         for entry in valid_lines:
@@ -52,13 +97,11 @@ def analyze_and_shuffle():
 
     print(f"✅ Shuffled dataset saved to: {os.path.abspath(SHUFFLED_PATH)}")
 
-    # Visa exempel
     print("\n🔎 First 3 entries:")
     for i, entry in enumerate(valid_lines[:3]):
         print(f"\n--- Entry {i+1} ---")
         print("Input:", entry["input"][:300])
         print("Output:", entry["output"][:300])
-
 
 if __name__ == "__main__":
     analyze_and_shuffle()
