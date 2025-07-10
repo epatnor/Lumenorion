@@ -36,20 +36,29 @@ config = LoraConfig(
 
 lora_model = get_peft_model(model, config)
 
-
 # == Load and tokenize dataset ==
 train_ds = load_dataset("json", data_files=DATA_PATH)["train"]
 
+# == Tokenization function ==
 def tokenize(example):
+    input_text = example["input"]
+    output_text = example["output"]
+
+    # Convert list to string if needed
+    if isinstance(input_text, list):
+        input_text = " ".join(input_text)
+    if isinstance(output_text, list):
+        output_text = " ".join(output_text)
+
     return tokenizer(
-        example["input"] + "\n" + example["output"],
+        input_text + "\n" + output_text,
         truncation=True,
         max_length=MAX_TOKENS,
         padding="max_length"
     )
 
+# == Apply tokenizer ==
 train_ds = train_ds.map(tokenize, batched=True)
-
 
 # == Training parameters ==
 training_args = TrainingArguments(
