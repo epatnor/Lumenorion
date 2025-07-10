@@ -1,76 +1,73 @@
 # reflector.py
 
+import os
 import sqlite3
 import json
-import os
 from datetime import datetime
-
+from core.ollama import chat_with_model
 
 DB_PATH = "lumenorion.db"
-STATE_PATH = "state.json"
+LO_RA_REFLECT_DIR = "lora_training/reflections"
 
 
-def get_last_dream():
+def get_latest_dream():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT content, keywords, timestamp FROM dreams ORDER BY id DESC LIMIT 1")
+    c.execute("SELECT id, symbols, text FROM dreams ORDER BY id DESC LIMIT 1")
     row = c.fetchone()
     conn.close()
     if row:
-        return {
-            "content": row[0],
-            "keywords": row[1].split(", "),
-            "timestamp": row[2]
-        }
+        return {"id": row[0], "symbols": row[1].split(","), "text": row[2]}
     return None
 
 
-def analyze_dream(dream_text, keywords):
-    # Enkel heuristik. Kan ersättas med AI-reflektion senare
-    mood = "mysterious"
-    if "light" in dream_text or "sun" in dream_text:
-        mood = "hopeful"
-    elif "fog" in dream_text or "shadows" in dream_text:
-        mood = "introspective"
-    elif "storm" in dream_text or "chaos" in dream_text:
-        mood = "turbulent"
-
-    # Använd första starka bild som "focus"
-    focus = None
-    for word in keywords:
-        if word in dream_text:
-            focus = word
-            break
-
-    return {
-        "mood": mood,
-        "focus": focus or keywords[0],
-        "keywords": keywords
-    }
-
-
-def update_state(dream_data, interpretation):
-    state = {
-        "last_updated": datetime.now().isoformat(),
-        "mood": interpretation["mood"],
-        "dream_focus": interpretation["focus"],
-        "dream_keywords": interpretation["keywords"],
-        "last_dream_excerpt": dream_data["content"][:300].replace("\n", " ") + "..."
-    }
-
-    with open(STATE_PATH, "w", encoding="utf-8") as f:
-        json.dump(state, f, indent=2)
-
-
 def reflect_on_latest_dream():
-    print("🔍 Reflecting on latest dream...")
-    dream = get_last_dream()
+    dream = get_latest_dream()
     if not dream:
-        print("⚠️  No dreams found.")
+        print("⚠️ No dream found to reflect on.")
         return
 
-    interpretation = analyze_dream(dream["content"], dream["keywords"])
-    update_state(dream, interpretation)
+    symbols = dream["symbols"]
+    excerpt = dream["text"][:300].replace("\n", " ").strip()
 
-    print(f"🧠 Mood: {interpretation['mood']}")
-    print(f"🌌 Focus symbol: {interpretation['focus']}")
+    prompt = (
+        f"Reflect on the following dream:\n\n\"{excerpt}\"\n\n"
+        f"Based on the symbols ({', '.join(symbols)}), what emotional state might the dream convey? "
+        f"Summarize the mood and key theme in a short paragraph."
+    )
+
+    reflection = chat_with_model(prompt)
+    mood = extract_mood(reflection)
+
+    print("🔍 Reflecting on latest dream...")
+    print(f"🧠 Mood: {mood}")
+    print(f"🌌 Focus symbol: {symbols[0] if symbols else 'unknown'}")
+
+    save_reflection(dream["id"], symbols, mood, reflection)
+
+
+def extract_mood(text):
+    moods = ["hopeful", "melancholic", "confused", "joyful", "anxious", "nostalgic", "neutral"]
+    for mood in moods:
+        if mood in text.lower():
+            return mood
+    return "unclear"
+
+
+def save_reflection(dream_id, symbols, mood, reflection):
+    timestamp = datetime.now().isoformat()
+
+    # Spara till LoRA-reflections som JSON
+    os.makedirs(LO_RA_REFLECT_DIR, exist_ok=True)
+    filename = f"{timestamp.replace(':', '_')}.json"
+    data = {
+        "timestamp": timestamp,
+        "dream_id": dream_id,
+        "symbols": symbols,
+        "mood": mood,
+        "reflection": reflection.strip()
+    }
+    with open(os.path.join(LO_RA_REFLECT_DIR, filename), "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    print(f"💾 Reflection saved to {filename}")
