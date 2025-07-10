@@ -3,6 +3,11 @@ setlocal
 
 echo 🔧 Checking environment...
 
+:: Rensa lokala ändringar och dra senaste från GitHub
+echo 🌐 Syncing with GitHub (resetting local changes)...
+git reset --hard >nul
+git pull
+
 :: Skapa virtuell miljö om den inte finns
 if not exist ".venv" (
     echo 🐍 Creating virtual environment...
@@ -12,9 +17,9 @@ if not exist ".venv" (
 :: Aktivera miljön
 call .venv\Scripts\activate.bat
 
-:: Installera beroenden om de inte redan finns
+:: Installera beroenden
 echo 📦 Installing required packages...
-pip install --upgrade pip >nul
+python -m pip install --upgrade pip >nul
 pip install -r requirements.txt
 
 :: Kör huvudprogrammet
