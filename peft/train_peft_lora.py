@@ -19,39 +19,37 @@ CACHE_DIR = "models/gemma3n"  # Local model path
 
 print("📦 Loading tokenizer and base model...")
 
-# Tokenizer – downloaded once and reused locally
+# Tokenizer
 tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL, cache_dir=CACHE_DIR)
 
-# Modell – fullständig laddning, inga meta-tensors
+# Choose device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"🔧 Using device: {device}")
+
+# Load model on correct device
 model = AutoModelForCausalLM.from_pretrained(
     BASE_MODEL,
     cache_dir=CACHE_DIR,
     device_map=None,
-    low_cpu_mem_usage=False,
-    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
-)
+    low_cpu_mem_usage=True,
+    torch_dtype=torch.float32  # Avoid fp16 to reduce memory risk
+).to(device)
 
-print(f"✅ Base model loaded on: {next(model.parameters()).device}")
+print(f"✅ Model loaded on: {next(model.parameters()).device}")
 
 
 # == LoRA configuration ==
 print("⚙️  Applying LoRA configuration...")
 config = LoraConfig(
-    r=8,
+    r=4,  # Reduce rank
     lora_dropout=0.05,
     bias="none",
     task_type=TaskType.CAUSAL_LM,
     target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]
 )
 lora_model = get_peft_model(model, config)
+lora_model.to(device)
 print("✅ LoRA model wrapped.")
-
-# 🔁 Flytta till GPU (viktigt)
-if torch.cuda.is_available():
-    lora_model = lora_model.to("cuda")
-    print("🚀 LoRA model moved to GPU.")
-else:
-    print("⚠️ CUDA not available, training will run on CPU.")
 
 
 # == Load and tokenize dataset ==
@@ -59,7 +57,6 @@ print("📝 Loading dataset...")
 train_ds = load_dataset("json", data_files=DATA_PATH)["train"]
 print(f"📊 Dataset loaded: {len(train_ds)} samples")
 
-# == Tokenization function ==
 def tokenize(batch):
     texts = []
     for input_text, output_text in zip(batch["input"], batch["output"]):
@@ -93,10 +90,11 @@ print("✅ Ready to train.")
 print("🚦 Configuring training arguments...")
 training_args = TrainingArguments(
     output_dir=OUTPUT_DIR,
-    per_device_train_batch_size=4,
+    per_device_train_batch_size=1,
     num_train_epochs=3,
     learning_rate=2e-4,
-    fp16=torch.cuda.is_available(),
+    fp16=False,  # Avoid mixed precision
+    gradient_checkpointing=True,
     save_total_limit=1,
     save_steps=100,
     logging_steps=10,
@@ -104,7 +102,6 @@ training_args = TrainingArguments(
     disable_tqdm=False,
     logging_dir="lora_training/logs_train/tensorboard"
 )
-
 
 # == Train model ==
 print("🚀 Starting training...")
