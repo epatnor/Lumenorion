@@ -13,36 +13,25 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from config import BASE_MODEL, MAX_TOKENS
 
 
-# == File paths ==
 DATA_PATH = "lora_training/datasets/lumenorion_lora_shuffled.jsonl"
-OUTPUT_DIR = "peft/output_gemma_lora"
+OUTPUT_DIR = "peft/output_lora_lumenorion"
 CACHE_DIR = "models/gemma3n"
 
 
-# == Detect safe batch size ==
 def detect_safe_batch_size():
-    total_vram = torch.cuda.get_device_properties(0).total_memory // (1024 ** 2)
-    print(f"📊 Detected GPU memory: {total_vram} MB")
-    if total_vram < 7000:
-        return 1
-    elif total_vram < 10000:
-        return 2
-    else:
-        return 4
+    return 1  # Hardcoded to be minimal
 
 
-# == Optional: limit GPU memory usage ==
 if torch.cuda.is_available():
     try:
         torch.cuda.set_per_process_memory_fraction(0.8)
-    except Exception as e:
-        print(f"⚠️ Could not set memory fraction: {e}")
+    except Exception:
+        pass
 
 gc.collect()
 torch.cuda.empty_cache()
 
 
-# == Load tokenizer and base model ==
 print("📦 Loading tokenizer and base model...")
 tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL, cache_dir=CACHE_DIR)
 model = AutoModelForCausalLM.from_pretrained(
@@ -55,23 +44,22 @@ model = AutoModelForCausalLM.from_pretrained(
 print(f"✅ Model loaded on: {next(model.parameters()).device}")
 
 
-# == Wrap in LoRA ==
-print("⚙️  Applying LoRA configuration...")
+print("⚙️  Applying lightweight LoRA config...")
 config = LoraConfig(
-    r=8,
+    r=4,
     lora_dropout=0.05,
     bias="none",
     task_type=TaskType.CAUSAL_LM,
-    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]
+    target_modules=["q_proj", "v_proj"]
 )
 lora_model = get_peft_model(model, config)
 print("✅ LoRA model wrapped.")
 
 
-# == Load and tokenize dataset ==
 print("📝 Loading dataset...")
 train_ds = load_dataset("json", data_files=DATA_PATH)["train"]
-print(f"📊 Dataset loaded: {len(train_ds)} samples")
+train_ds = train_ds.select(range(min(10, len(train_ds))))  # Limit for light training
+print(f"📊 Using {len(train_ds)} training examples")
 
 def tokenize(batch):
     texts = []
@@ -88,40 +76,34 @@ def tokenize(batch):
         padding="max_length"
     )
 
-print("✍️  Tokenizing dataset...")
+print("✍️  Tokenizing...")
 train_ds = train_ds.map(tokenize, batched=True, num_proc=1)
-print("✅ Tokenization complete.")
+print("✅ Tokenization done.")
 
 
-# == Sanity check ==
-print("🧠 Verifying model & dataset state...")
+print("🧠 Sanity check...")
 print(f"  Device: {next(lora_model.parameters()).device}")
-print(f"  Samples: {len(train_ds)}")
-print(f"  First token IDs: {train_ds[0]['input_ids'][:10]}")
-print("✅ Ready to train.")
+print(f"  Sample: {train_ds[0]['input_ids'][:10]}")
 
 
-# == Training parameters ==
 batch_size = detect_safe_batch_size()
-print(f"🚦 Using batch size: {batch_size} (with gradient_accumulation_steps=4)")
+print(f"🚦 Batch size: {batch_size}, Accumulation: 1, Epochs: 1")
 
 training_args = TrainingArguments(
     output_dir=OUTPUT_DIR,
     per_device_train_batch_size=batch_size,
-    gradient_accumulation_steps=4,
-    num_train_epochs=3,
-    learning_rate=2e-4,
+    gradient_accumulation_steps=1,
+    num_train_epochs=1,
+    learning_rate=1e-4,
     fp16=torch.cuda.is_available(),
     save_total_limit=1,
-    save_steps=100,
+    save_steps=1000,
     logging_steps=10,
     report_to="none",
     disable_tqdm=False,
     logging_dir="lora_training/logs_train/tensorboard"
 )
 
-
-# == Try training on GPU first ==
 print("🚀 Starting training...")
 try:
     gc.collect()
@@ -138,8 +120,6 @@ try:
 except RuntimeError as e:
     if "CUDA out of memory" in str(e):
         print("⚠️ CUDA OOM – retrying on CPU...")
-
-        # Reload on CPU
         torch.cuda.empty_cache()
         gc.collect()
 
@@ -150,18 +130,18 @@ except RuntimeError as e:
             low_cpu_mem_usage=False,
             torch_dtype=torch.float32
         )
-        lora_model = get_peft_model(model, config)
+        lora_model = get_peft_model(model, config).to("cpu")
 
         cpu_args = TrainingArguments(
             output_dir=OUTPUT_DIR,
             per_device_train_batch_size=1,
-            gradient_accumulation_steps=4,
-            num_train_epochs=3,
-            learning_rate=2e-4,
+            gradient_accumulation_steps=1,
+            num_train_epochs=1,
+            learning_rate=1e-4,
             fp16=False,
             no_cuda=True,
             save_total_limit=1,
-            save_steps=100,
+            save_steps=1000,
             logging_steps=10,
             report_to="none",
             disable_tqdm=False,
@@ -175,14 +155,12 @@ except RuntimeError as e:
         )
         trainer.train()
         print("✅ Training complete on CPU.")
-
     else:
         print("❌ Training failed:")
         traceback.print_exc()
         exit(1)
 
 
-# == Save adapter ==
 print(f"💾 Saving LoRA adapter to: {OUTPUT_DIR}")
 lora_model.save_pretrained(OUTPUT_DIR)
-print("✅ LoRA trained and saved.")
+print("✅ Lightweight LoRA saved.")
