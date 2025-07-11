@@ -14,15 +14,23 @@ from config import BASE_MODEL, MAX_TOKENS
 # == File paths ==
 DATA_PATH = "lora_training/datasets/lumenorion_lora_shuffled.jsonl"
 OUTPUT_DIR = "peft/output_gemma_lora"
+CACHE_DIR = "models/gemma3n"  # Local model path
 
 print("📦 Loading tokenizer and base model...")
-tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
+
+# Tokenizer – downloaded once and reused locally
+tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL, cache_dir=CACHE_DIR)
+
+# Modell – fullständig laddning, inga meta-tensors
 model = AutoModelForCausalLM.from_pretrained(
     BASE_MODEL,
-    device_map="auto",
-    torch_dtype=torch.float16
+    cache_dir=CACHE_DIR,
+    device_map=None,
+    low_cpu_mem_usage=False,
+    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
 )
-print("✅ Model ready.")
+
+print(f"✅ Model loaded on: {next(model.parameters()).device}")
 
 
 # == LoRA configuration ==
@@ -72,7 +80,7 @@ training_args = TrainingArguments(
     per_device_train_batch_size=4,
     num_train_epochs=3,
     learning_rate=2e-4,
-    fp16=True,
+    fp16=torch.cuda.is_available(),
     save_total_limit=1,
     save_steps=100,
     logging_steps=10,
@@ -94,7 +102,6 @@ try:
 except Exception as e:
     print(f"❌ Training failed: {e}")
     exit(1)
-
 
 # == Save trained LoRA adapter ==
 print(f"💾 Saving LoRA adapter to: {OUTPUT_DIR}")
