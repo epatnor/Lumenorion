@@ -78,16 +78,16 @@ echo  *       ✨        .     *        ✨     .
 echo      .
 echo ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 echo ▓                                              ▓
-echo ▓   🌿   ╔═══════════════════════════╗   🌿   ▓
+echo ▓   🌿   ╔══════════════════════=═════╗   🌿   ▓
 echo ▓   🪨   ║    🌌  LUMENORION GATE    ║   🪨   ▓
-echo ▓   🌿   ╚═══════════════════════════╝   🌿   ▓
+echo ▓   🌿   ╚═════════════════════=══════╝   🌿   ▓
 echo ▓                                              ▓
-echo ▓          🪨 [①] 🌙  Dream and Reflect       ▓
-echo ▓          🌿 [②] 🧠  Talk to Lumenorion      ▓
-echo ▓          🪨 [③] 🔬  Train LoRA Model        ▓
-echo ▓          🌿 [④] 🚪  Exit the Portal         ▓
+echo ▓          🪨 [①] 🌙  Dream and Reflect        ▓
+echo ▓          🌿 [②] 🧠  Talk to Lumenorion       ▓
+echo ▓          🪨 [③] 🔬  Train LoRA Model         ▓
+echo ▓          🌿 [④] 🚪  Exit the Portal          ▓
 echo ▓                                              ▓
-echo ▓ ✨  Stars shimmer through ancient stone...  ▓
+echo ▓  ✨  Stars shimmer through ancient stone...  ▓
 echo ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 echo.
 set /p choice=        🌠 Choose your path [1-4]: 
