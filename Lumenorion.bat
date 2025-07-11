@@ -48,6 +48,8 @@ if not exist requirements.txt (
 )
 
 pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cu121
+pip install -q "numpy<2"
+
 if errorlevel 1 (
     echo ❌ Failed to install requirements.
     pause
