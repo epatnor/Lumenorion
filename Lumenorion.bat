@@ -71,7 +71,7 @@ echo.
 echo ✅ Environment ready.
 
 :menu
-cls
+
 echo.
 echo  ⠀⠀⠀⠀⠀⠀  .  *        ✨             *
 echo  *       ✨        .     *        ✨     .
