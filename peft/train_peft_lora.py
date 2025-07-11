@@ -5,6 +5,7 @@ from peft import LoraConfig, get_peft_model, TaskType
 from datasets import load_dataset
 import torch
 import sys, os
+import gc
 import traceback
 
 # Add project root to sys.path
@@ -17,12 +18,35 @@ DATA_PATH = "lora_training/datasets/lumenorion_lora_shuffled.jsonl"
 OUTPUT_DIR = "peft/output_gemma_lora"
 CACHE_DIR = "models/gemma3n"  # Local model path
 
+
+# == Detect safe batch size ==
+def detect_safe_batch_size():
+    total_vram = torch.cuda.get_device_properties(0).total_memory // (1024 ** 2)  # MB
+    print(f"📊 Detected GPU memory: {total_vram} MB")
+    if total_vram < 7000:
+        return 1
+    elif total_vram < 10000:
+        return 2
+    else:
+        return 4
+
+
+# == Optional: limit memory usage to 80% (CUDA >= 11.4) ==
+if torch.cuda.is_available():
+    try:
+        torch.cuda.set_per_process_memory_fraction(0.8)
+    except Exception as e:
+        print(f"⚠️ Could not set memory fraction: {e}")
+
+
+# == Cleanup before loading ==
+gc.collect()
+torch.cuda.empty_cache()
+
 print("📦 Loading tokenizer and base model...")
 
-# Tokenizer – downloaded once and reused locally
 tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL, cache_dir=CACHE_DIR)
 
-# Modell – fullständig laddning, inga meta-tensors
 model = AutoModelForCausalLM.from_pretrained(
     BASE_MODEL,
     cache_dir=CACHE_DIR,
@@ -52,7 +76,6 @@ print("📝 Loading dataset...")
 train_ds = load_dataset("json", data_files=DATA_PATH)["train"]
 print(f"📊 Dataset loaded: {len(train_ds)} samples")
 
-# == Tokenization function ==
 def tokenize(batch):
     texts = []
     for input_text, output_text in zip(batch["input"], batch["output"]):
@@ -83,10 +106,14 @@ print("✅ Ready to train.")
 
 
 # == Training parameters ==
-print("🚦 Configuring training arguments...")
+batch_size = detect_safe_batch_size()
+
+print(f"🚦 Using batch size: {batch_size} (with gradient_accumulation_steps=4)")
+
 training_args = TrainingArguments(
     output_dir=OUTPUT_DIR,
-    per_device_train_batch_size=4,
+    per_device_train_batch_size=batch_size,
+    gradient_accumulation_steps=4,
     num_train_epochs=3,
     learning_rate=2e-4,
     fp16=torch.cuda.is_available(),
@@ -98,21 +125,45 @@ training_args = TrainingArguments(
     logging_dir="lora_training/logs_train/tensorboard"
 )
 
-# == Train model ==
-print("🚀 Starting training...")
 trainer = Trainer(
     model=lora_model,
     args=training_args,
     train_dataset=train_ds
 )
 
+# == Training phase with fallback ==
+print("🚀 Starting training...")
 try:
+    gc.collect()
+    torch.cuda.empty_cache()
     trainer.train()
     print("✅ Training complete.")
-except Exception as e:
-    print("❌ Training failed:")
-    traceback.print_exc()
-    exit(1)
+except RuntimeError as e:
+    if "CUDA out of memory" in str(e):
+        print("⚠️ CUDA OOM – retrying on CPU...")
+        torch.cuda.empty_cache()
+        gc.collect()
+
+        model = AutoModelForCausalLM.from_pretrained(
+            BASE_MODEL,
+            cache_dir=CACHE_DIR,
+            device_map=None,
+            low_cpu_mem_usage=False,
+            torch_dtype=torch.float32
+        )
+        lora_model = get_peft_model(model, config)
+
+        trainer = Trainer(
+            model=lora_model,
+            args=training_args,
+            train_dataset=train_ds
+        )
+        trainer.train()
+        print("✅ Training complete on CPU.")
+    else:
+        print("❌ Training failed:")
+        traceback.print_exc()
+        exit(1)
 
 # == Save trained LoRA adapter ==
 print(f"💾 Saving LoRA adapter to: {OUTPUT_DIR}")
