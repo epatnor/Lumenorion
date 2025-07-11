@@ -5,6 +5,7 @@ from peft import LoraConfig, get_peft_model, TaskType
 from datasets import load_dataset
 import torch
 import sys, os
+import traceback
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -73,6 +74,14 @@ train_ds = train_ds.map(tokenize, batched=True, num_proc=1)
 print("✅ Tokenization complete.")
 
 
+# == Sanity checks ==
+print("🧠 Verifying model & dataset state...")
+print(f"  Device: {next(lora_model.parameters()).device}")
+print(f"  Samples: {len(train_ds)}")
+print(f"  First token IDs: {train_ds[0]['input_ids'][:10]}")
+print("✅ Ready to train.")
+
+
 # == Training parameters ==
 print("🚦 Configuring training arguments...")
 training_args = TrainingArguments(
@@ -86,6 +95,7 @@ training_args = TrainingArguments(
     logging_steps=10,
     report_to="none",
     disable_tqdm=False,
+    logging_dir="lora_training/logs_train/tensorboard"
 )
 
 # == Train model ==
@@ -100,7 +110,8 @@ try:
     trainer.train()
     print("✅ Training complete.")
 except Exception as e:
-    print(f"❌ Training failed: {e}")
+    print("❌ Training failed:")
+    traceback.print_exc()
     exit(1)
 
 # == Save trained LoRA adapter ==
