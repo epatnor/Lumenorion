@@ -9,35 +9,35 @@ import json
 import time
 from datetime import datetime
 
-# Log file path
+# 📁 Log path
 LOG_PATH = "lora_training/logs_train/last_training_log.json"
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
 
-# Run dataset preparation script
+# 🧪 Run dataset preparation script
 def prepare_dataset():
     print("🔄 Preparing dataset...")
     result = subprocess.run([sys.executable, "prepare_lora_data.py"], capture_output=True, text=True)
     if result.returncode != 0:
-        print("❌ Failed to prepare dataset:")
-        print(result.stderr)
+        print("❌ Dataset preparation failed:\n" + result.stderr)
         return False, result.stderr
     print("✅ Dataset ready.")
     return True, None
 
-# Run LoRA training script
+# 🧠 Run LoRA training script
 def train_peft_lora():
-    print("🚀 Training LoRA model with PEFT...")
+    print("🚀 Training LoRA model...")
     start = time.time()
-    result = subprocess.run([sys.executable, "peft/train_peft_lora.py"], capture_output=True, text=True)
+    result = subprocess.run([sys.executable, "train_peft_lora.py"], capture_output=True, text=True)  # 🔧 fixad sökväg
     duration = time.time() - start
+
     if result.returncode != 0:
-        print("❌ Failed to train LoRA model:")
-        print(result.stderr)
+        print("❌ Training failed:\n" + result.stderr)
         return False, result.stderr, duration
-    print("🎉 LoRA model trained and saved!")
+
+    print("🎉 Training complete.")
     return True, None, duration
 
-# Save training metadata to JSON log file
+# 🧾 Save training metadata
 def log_training(success, stage, error=None, duration=None):
     log = {
         "timestamp": datetime.now().isoformat(),
@@ -50,9 +50,9 @@ def log_training(success, stage, error=None, duration=None):
     }
     with open(LOG_PATH, "w", encoding="utf-8") as f:
         json.dump(log, f, ensure_ascii=False, indent=2)
-    print(f"📝 Training log saved to {LOG_PATH}")
+    print(f"📝 Log saved: {LOG_PATH}")
 
-# Run both steps and log outcomes
+# ▶️ Kör allt
 if __name__ == "__main__":
     ok, error = prepare_dataset()
     if not ok:
