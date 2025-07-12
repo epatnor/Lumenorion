@@ -2,7 +2,11 @@
 
 # == Imports ==
 import os, sys, traceback, torch, logging
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import (
+    AutoTokenizer,
+    AutoModelForCausalLM,
+    default_data_collator
+)
 from peft import LoraConfig, get_peft_model, TaskType
 from datasets import load_dataset
 from torch.utils.data import DataLoader
@@ -24,7 +28,6 @@ print("🚀 train_peft_lora.py started")
 sys.stdout.reconfigure(line_buffering=True)
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-# Show config
 print("🧭 Config:")
 print(f"  DATA_PATH:     {DATA_PATH}")
 print(f"  OUTPUT_DIR:    {OUTPUT_DIR}")
@@ -33,7 +36,6 @@ print(f"  MAX_EXAMPLES:  {MAX_EXAMPLES}")
 print(f"  MAX_STEPS:     {MAX_STEPS}")
 print(f"  BATCH_SIZE:    {BATCH_SIZE}")
 
-# Init device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"🔧 Using device: {device}")
 if device.type == "cpu":
@@ -51,7 +53,6 @@ model = AutoModelForCausalLM.from_pretrained(
 ).to(device)
 print(f"✅ Model loaded on: {next(model.parameters()).device}")
 
-# Enable memory saving
 if hasattr(model, "gradient_checkpointing_enable"):
     model.gradient_checkpointing_enable()
     print("🧠 Gradient checkpointing enabled.")
@@ -91,7 +92,11 @@ print("🔎 Sample token:", dataset[0]["input_ids"][:10])
 # == Training ==
 print("🚦 Starting manual training loop...")
 model.train()
-loader = DataLoader(dataset, batch_size=BATCH_SIZE)
+loader = DataLoader(
+    dataset,
+    batch_size=BATCH_SIZE,
+    collate_fn=default_data_collator
+)
 optimizer = torch.optim.AdamW(model.parameters(), lr=2e-4)
 
 interrupted = False
@@ -103,41 +108,8 @@ try:
             break
 
         print(f"➡️ Step {step+1}/{MAX_STEPS}")
-
-        input_ids = batch["input_ids"]
-        attention_mask = batch["attention_mask"]
-
-        # Gör robust konvertering (accepterar även vanliga listor av listor eller ints)
-        if isinstance(input_ids, list):
-            print("⚠️ input_ids is list, converting to tensors...")
-            try:
-                input_ids = [
-                    torch.tensor(x, dtype=torch.long) if not isinstance(x, torch.Tensor) else x
-                    for x in input_ids
-                ]
-                if all(x.ndim == 1 for x in input_ids):
-                    input_ids = torch.stack(input_ids, dim=0)
-                else:
-                    raise ValueError("❌ Each input_ids item must be 1D")
-            except Exception as e:
-                raise ValueError(f"❌ Failed to convert input_ids: {e}")
-
-        if isinstance(attention_mask, list):
-            print("⚠️ attention_mask is list, converting to tensors...")
-            try:
-                attention_mask = [
-                    torch.tensor(x, dtype=torch.long) if not isinstance(x, torch.Tensor) else x
-                    for x in attention_mask
-                ]
-                if all(x.ndim == 1 for x in attention_mask):
-                    attention_mask = torch.stack(attention_mask, dim=0)
-                else:
-                    raise ValueError("❌ Each attention_mask item must be 1D")
-            except Exception as e:
-                raise ValueError(f"❌ Failed to convert attention_mask: {e}")
-
-        input_ids = input_ids.to(device)
-        attention_mask = attention_mask.to(device)
+        input_ids = batch["input_ids"].to(device)
+        attention_mask = batch["attention_mask"].to(device)
 
         print(f"🔢 Batch shape: {input_ids.shape}")
         print("🧠 Forward pass...")
