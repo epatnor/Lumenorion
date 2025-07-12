@@ -105,22 +105,27 @@ model.train()
 loader = DataLoader(dataset, batch_size=BATCH_SIZE, collate_fn=default_data_collator)
 optimizer = torch.optim.AdamW(model.parameters(), lr=2e-4)
 
+total_batches = len(loader)
+steps_to_run = min(MAX_STEPS, total_batches)
+if steps_to_run < MAX_STEPS:
+    print(f"ℹ️ Adjusted MAX_STEPS to {steps_to_run} (based on dataset size)")
+
 interrupted = False
 
 try:
     for step, batch in enumerate(loader):
-        if step >= MAX_STEPS:
+        if step >= steps_to_run:
             print("⏹️ Max steps reached. Stopping.")
             break
 
-        print(f"➡️ Step {step+1}/{MAX_STEPS}")
+        print(f"➡️ Step {step+1}/{steps_to_run}", flush=True)
         step_start = time.time()
 
         input_ids = batch["input_ids"].to(device)
         attention_mask = batch["attention_mask"].to(device)
 
-        print(f"🔢 Batch shape: {input_ids.shape}")
-        print("🧠 Forward pass...")
+        print(f"🔢 Batch shape: {input_ids.shape}", flush=True)
+        print("🧠 Forward pass...", flush=True)
 
         outputs = model(
             input_ids=input_ids,
@@ -129,7 +134,7 @@ try:
         )
 
         loss = outputs.loss
-        print(f"📉 Loss: {loss.item():.4f}")
+        print(f"📉 Loss: {loss.item():.4f}", flush=True)
         print("🔁 Backward pass...", flush=True)
         loss.backward()
 
@@ -140,7 +145,7 @@ try:
         optimizer.zero_grad()
 
         step_end = time.time()
-        print(f"✅ Step {step+1} complete | 🕒 {step_end - step_start:.2f}s\n")
+        print(f"✅ Step {step+1} complete | 🕒 {step_end - step_start:.2f}s\n", flush=True)
 
 except KeyboardInterrupt:
     interrupted = True
@@ -164,30 +169,32 @@ print("✅ LoRA saved.")
 # == Quick evaluation ==
 print("\n🔍 Running eval preview...")
 
-model.eval()
+try:
+    model.eval()
+    eval_sample = dataset[-1]
+    prompt = tokenizer.decode(eval_sample["input_ids"], skip_special_tokens=True)
+    expected_output = eval_sample.get("output", "[No expected output in sample]")
 
-eval_sample = dataset[-1]
-prompt = tokenizer.decode(eval_sample["input_ids"], skip_special_tokens=True)
-expected_output = eval_sample.get("output", "[No expected output in sample]")
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=MAX_TOKENS).to(device)
 
-inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=MAX_TOKENS).to(device)
+    with torch.no_grad():
+        generated_ids = model.generate(
+            **inputs,
+            max_new_tokens=150,
+            temperature=0.7,
+            top_p=0.95,
+            do_sample=True
+        )
 
-with torch.no_grad():
-    generated_ids = model.generate(
-        **inputs,
-        max_new_tokens=150,
-        temperature=0.7,
-        top_p=0.95,
-        do_sample=True
-    )
+    generated_text = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
 
-generated_text = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
+    print("\n🧪 Prompt:")
+    print(prompt)
+    print("\n🎯 Expected:")
+    print(expected_output)
+    print("\n🤖 Model output:")
+    print(generated_text)
 
-print("\n🧪 Prompt:")
-print(prompt)
-
-print("\n🎯 Expected:")
-print(expected_output)
-
-print("\n🤖 Model output:")
-print(generated_text)
+except Exception as e:
+    print("❌ Eval preview failed:")
+    print(e)
