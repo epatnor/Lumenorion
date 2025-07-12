@@ -16,6 +16,9 @@ from torch.utils.data import DataLoader
 # Project config
 from config import BASE_MODEL, MAX_TOKENS
 
+# Startindikator
+print("🚀 train_peft_lora.py started")
+
 # Loggfix
 sys.stdout.reconfigure(line_buffering=True)
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -26,6 +29,13 @@ OUTPUT_DIR = "peft/output_gemma_lora"
 CACHE_DIR = "models/gemma3n"
 MAX_EXAMPLES = 20
 MAX_STEPS = 50
+
+print("🧭 Config:")
+print(f"  DATA_PATH:     {DATA_PATH}")
+print(f"  OUTPUT_DIR:    {OUTPUT_DIR}")
+print(f"  CACHE_DIR:     {CACHE_DIR}")
+print(f"  MAX_EXAMPLES:  {MAX_EXAMPLES}")
+print(f"  MAX_STEPS:     {MAX_STEPS}")
 
 # Initiera enhet
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
