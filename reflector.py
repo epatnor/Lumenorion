@@ -7,7 +7,7 @@ import warnings
 from datetime import datetime
 from core.peft_infer import generate_reply
 
-# 🛑 Tysta störande varningar från transformers
+# 🔕 Tysta varningar
 warnings.filterwarnings("ignore", message=".*flash attention.*", category=UserWarning)
 warnings.filterwarnings("ignore", message=".*offloaded to the cpu.*", category=UserWarning)
 
@@ -113,7 +113,7 @@ def reflect_on_latest_dream():
 
     print("🔍 Generating reflection...")
     try:
-        reflection = generate_reply(prompt).strip()
+        reflection = generate_reply(prompt, max_tokens=200).strip()
     except Exception as e:
         print(f"❌ Failed to generate reflection: {e}")
         return
