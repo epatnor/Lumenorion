@@ -104,24 +104,19 @@ try:
 
         print(f"➡️ Step {step+1}/{MAX_STEPS}")
 
-        # Hantera batch oavsett typ (list eller tensor)
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
 
+        # Gör robust konvertering
         if isinstance(input_ids, list):
-            print("⚠️ input_ids is list, converting to tensor...")
-            input_ids = torch.tensor(input_ids, dtype=torch.long)
+            print("⚠️ input_ids is list, stacking to tensor...")
+            input_ids = torch.stack(input_ids)
         if isinstance(attention_mask, list):
-            print("⚠️ attention_mask is list, converting to tensor...")
-            attention_mask = torch.tensor(attention_mask, dtype=torch.long)
+            print("⚠️ attention_mask is list, stacking to tensor...")
+            attention_mask = torch.stack(attention_mask)
 
         input_ids = input_ids.to(device)
         attention_mask = attention_mask.to(device)
-
-        if input_ids.ndim == 1:
-            input_ids = input_ids.unsqueeze(0)
-        if attention_mask.ndim == 1:
-            attention_mask = attention_mask.unsqueeze(0)
 
         print(f"🔢 Batch shape: {input_ids.shape}")
         print("🧠 Forward pass...")
@@ -153,7 +148,6 @@ if interrupted:
 else:
     print("🎉 Training complete.")
 
-# Save trained LoRA
 print(f"💾 Saving to: {OUTPUT_DIR}")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 model.save_pretrained(OUTPUT_DIR)
