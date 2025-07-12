@@ -108,7 +108,9 @@ def reflect_on_latest_dream():
     prompt = (
         f"Reflect on the following dream:\n\n\"{excerpt}\"\n\n"
         f"Based on the symbols ({', '.join(symbols)}), what emotional state might the dream convey?\n"
-        f"Summarize the mood and key theme in a short paragraph."
+        f"Summarize the mood and key theme in one complete paragraph. "
+        f"Keep it concise and self-contained, no longer than about 120 words. "
+        f"Do not generate additional interpretations or alternate takes."
     )
 
     print("🔍 Generating reflection...")
