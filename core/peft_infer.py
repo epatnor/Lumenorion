@@ -9,6 +9,7 @@ from config import LORA_DIR, TEMPERATURE, TOP_P, MAX_TOKENS
 peft_config = PeftConfig.from_pretrained(LORA_DIR)
 base_model_name = peft_config.base_model_name_or_path
 
+# 🔤 Tokenizer och basmodell
 tokenizer = AutoTokenizer.from_pretrained(base_model_name)
 base_model = AutoModelForCausalLM.from_pretrained(
     base_model_name,
@@ -21,8 +22,8 @@ model = PeftModel.from_pretrained(base_model, LORA_DIR)
 model.eval()
 
 # 🗨️ Generera svar från prompt
-def generate_reply(prompt, max_new_tokens=None, temperature=TEMPERATURE):
-    max_new_tokens = max_new_tokens or MAX_TOKENS
+def generate_reply(prompt, max_tokens=None, temperature=TEMPERATURE):
+    max_tokens = max_tokens or MAX_TOKENS
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # 🔧 Tokenisera input och flytta till rätt enhet
@@ -33,7 +34,7 @@ def generate_reply(prompt, max_new_tokens=None, temperature=TEMPERATURE):
     with torch.no_grad():
         output = model.generate(
             **inputs,
-            max_new_tokens=max_new_tokens,
+            max_new_tokens=max_tokens,
             temperature=temperature,
             top_p=TOP_P,
             do_sample=True,
