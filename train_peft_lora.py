@@ -106,16 +106,21 @@ try:
             print("⏹️ Max steps reached. Stopping.")
             break
 
-        # Kontroll: logga batch shape
         print(f"📦 Batch keys: {list(batch.keys())}")
 
-        input_ids = batch["input_ids"][0]
-        attention_mask = batch["attention_mask"][0]
+        input_ids = torch.tensor(batch["input_ids"], dtype=torch.long).to(device)
+        attention_mask = torch.tensor(batch["attention_mask"], dtype=torch.long).to(device)
 
-        print(f"🔢 Input shape: {len(input_ids)} tokens")
+        # Kontrollera att shape är [batch_size, seq_len]
+        if input_ids.ndim == 1:
+            print("⚠️ input_ids is 1D, unsqueezing...")
+            input_ids = input_ids.unsqueeze(0)
+        if attention_mask.ndim == 1:
+            print("⚠️ attention_mask is 1D, unsqueezing...")
+            attention_mask = attention_mask.unsqueeze(0)
 
-        input_ids = torch.tensor([input_ids], dtype=torch.long).to(device)
-        attention_mask = torch.tensor([attention_mask], dtype=torch.long).to(device)
+        print(f"🔢 Input shape: {input_ids.shape} | Attention shape: {attention_mask.shape}")
+
         labels = input_ids.clone()
 
         print("🧠 Forward pass...")
@@ -141,6 +146,7 @@ except Exception as e:
     print("❌ Training failed:")
     traceback.print_exc()
     sys.exit(1)
+
 
 # Spara tränad LoRA-adapter
 print(f"💾 Saving to: {OUTPUT_DIR}")
