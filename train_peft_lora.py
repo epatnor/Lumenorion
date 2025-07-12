@@ -180,3 +180,36 @@ print(f"💾 Saving to: {OUTPUT_DIR}")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 model.save_pretrained(OUTPUT_DIR)
 print("✅ LoRA saved.")
+
+# == Quick evaluation ==
+print("\n🔍 Running eval preview...")
+
+model.eval()
+
+eval_sample = dataset[-1]
+prompt = eval_sample["input"]
+expected_output = eval_sample["output"]
+
+# Tokenize prompt
+inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=MAX_TOKENS).to(device)
+
+# Generate output
+with torch.no_grad():
+    generated_ids = model.generate(
+        **inputs,
+        max_new_tokens=150,
+        temperature=0.7,
+        top_p=0.95,
+        do_sample=True
+    )
+
+generated_text = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
+
+print("\n🧪 Prompt:")
+print(prompt)
+
+print("\n🎯 Expected:")
+print(expected_output)
+
+print("\n🤖 Model output:")
+print(generated_text)
