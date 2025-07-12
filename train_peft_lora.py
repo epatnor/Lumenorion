@@ -10,23 +10,21 @@ from transformers import (
 from peft import LoraConfig, get_peft_model, TaskType
 from datasets import load_dataset
 from torch.utils.data import DataLoader
-from config import BASE_MODEL, MAX_TOKENS
-
-
-# == Paths and constants ==
-DATA_PATH = "lora_training/datasets/lumenorion_lora_shuffled.jsonl"
-OUTPUT_DIR = "lora_training/outputs/gemma3n_lora_test"
-CACHE_DIR = "models/gemma3n"
-MAX_EXAMPLES = 40
-MAX_STEPS = 20
-BATCH_SIZE = 2
-
+from config import BASE_MODEL, MAX_TOKENS, LORA_DIR, DATA_PATH
 
 # == Init ==
 print("🔬 Training LoRA model...")
 print("🚀 train_peft_lora.py started")
 sys.stdout.reconfigure(line_buffering=True)
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+
+# == Paths and constants ==
+OUTPUT_DIR = LORA_DIR
+CACHE_DIR = "models/gemma3n"
+MAX_EXAMPLES = 40
+MAX_STEPS = 20
+BATCH_SIZE = 1
+LEARNING_RATE = 1e-4
 
 print("🧭 Config:")
 print(f"  DATA_PATH:     {DATA_PATH}")
@@ -103,10 +101,9 @@ print("🔎 Sample token:", dataset[0]["input_ids"][:10])
 print("🚦 Starting manual training loop...")
 model.train()
 loader = DataLoader(dataset, batch_size=BATCH_SIZE, collate_fn=default_data_collator)
-optimizer = torch.optim.AdamW(model.parameters(), lr=2e-4)
+optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
 
-total_batches = len(loader)
-steps_to_run = min(MAX_STEPS, total_batches)
+steps_to_run = min(MAX_STEPS, len(loader))
 if steps_to_run < MAX_STEPS:
     print(f"ℹ️ Adjusted MAX_STEPS to {steps_to_run} (based on dataset size)")
 
