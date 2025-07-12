@@ -82,17 +82,27 @@ def tokenize(batch):
         input_text = " ".join(input_text) if isinstance(input_text, list) else input_text
         output_text = " ".join(output_text) if isinstance(output_text, list) else output_text
         texts.append(f"{input_text}\n{output_text}")
-    return tokenizer(texts, truncation=True, max_length=MAX_TOKENS, padding="max_length")
+    tokenized = tokenizer(
+        texts,
+        truncation=True,
+        max_length=MAX_TOKENS,
+        padding="max_length"
+    )
+    return {
+        "input_ids": tokenized["input_ids"],
+        "attention_mask": tokenized["attention_mask"]
+    }
 
 print("✍️  Tokenizing...")
 dataset = dataset.map(tokenize, batched=True, num_proc=1)
+dataset.set_format(type="torch", columns=["input_ids", "attention_mask"])
 print("✅ Tokenization complete.")
 print("🔎 Sample token:", dataset[0]["input_ids"][:10])
 
 # == Training ==
 print("🚦 Starting manual training loop...")
 model.train()
-loader = DataLoader(dataset, batch_size=BATCH_SIZE)
+loader = DataLoader(dataset, batch_size=BATCH_SIZE, collate_fn=default_data_collator)
 optimizer = torch.optim.AdamW(model.parameters(), lr=2e-4)
 
 interrupted = False
@@ -106,42 +116,12 @@ try:
         print(f"➡️ Step {step+1}/{MAX_STEPS}")
         step_start = time.time()
 
-        input_ids = batch["input_ids"]
-        attention_mask = batch["attention_mask"]
-
-        if isinstance(input_ids, list):
-            print("⚠️ input_ids is list, converting to tensors...")
-            try:
-                input_ids = [
-                    torch.tensor(x, dtype=torch.long) if not isinstance(x, torch.Tensor) else x
-                    for x in input_ids
-                ]
-                if all(x.ndim == 1 for x in input_ids):
-                    input_ids = torch.stack(input_ids, dim=0)
-                else:
-                    raise ValueError("❌ Each input_ids item must be 1D")
-            except Exception as e:
-                raise ValueError(f"❌ Failed to convert input_ids: {e}")
-
-        if isinstance(attention_mask, list):
-            print("⚠️ attention_mask is list, converting to tensors...")
-            try:
-                attention_mask = [
-                    torch.tensor(x, dtype=torch.long) if not isinstance(x, torch.Tensor) else x
-                    for x in attention_mask
-                ]
-                if all(x.ndim == 1 for x in attention_mask):
-                    attention_mask = torch.stack(attention_mask, dim=0)
-                else:
-                    raise ValueError("❌ Each attention_mask item must be 1D")
-            except Exception as e:
-                raise ValueError(f"❌ Failed to convert attention_mask: {e}")
-
-        input_ids = input_ids.to(device)
-        attention_mask = attention_mask.to(device)
+        input_ids = batch["input_ids"].to(device)
+        attention_mask = batch["attention_mask"].to(device)
 
         print(f"🔢 Batch shape: {input_ids.shape}")
         print("🧠 Forward pass...")
+
         outputs = model(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -187,13 +167,11 @@ print("\n🔍 Running eval preview...")
 model.eval()
 
 eval_sample = dataset[-1]
-prompt = eval_sample["input"]
-expected_output = eval_sample["output"]
+prompt = tokenizer.decode(eval_sample["input_ids"], skip_special_tokens=True)
+expected_output = eval_sample.get("output", "[No expected output in sample]")
 
-# Tokenize prompt
 inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=MAX_TOKENS).to(device)
 
-# Generate output
 with torch.no_grad():
     generated_ids = model.generate(
         **inputs,
