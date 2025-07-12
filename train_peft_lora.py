@@ -167,6 +167,7 @@ print("✅ LoRA saved.")
 print("\n🔍 Running eval preview...")
 
 try:
+    model.requires_grad_(False)  # 👈 Fix för eval utan gradients
     model.eval()
     eval_sample = dataset[-1]
     prompt = tokenizer.decode(eval_sample["input_ids"], skip_special_tokens=True)
@@ -195,3 +196,4 @@ try:
 except Exception as e:
     print("❌ Eval preview failed:")
     print(e)
+
