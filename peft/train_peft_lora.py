@@ -1,10 +1,20 @@
 # train_peft_lora.py
 
+# Setup
 import os, sys, traceback, torch, logging
+
+# Ensure parent dir (project root) is in path
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(ROOT_DIR)
+
+# HuggingFace & PEFT
 from transformers import AutoTokenizer, AutoModelForCausalLM, Trainer, TrainingArguments
 from peft import LoraConfig, get_peft_model, TaskType
 from datasets import load_dataset
+
+# Project config
 from config import BASE_MODEL, MAX_TOKENS
+
 
 # == Loggfix ==
 sys.stdout.reconfigure(line_buffering=True)
