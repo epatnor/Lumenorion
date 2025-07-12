@@ -8,7 +8,7 @@ USE_LOCAL_MODEL = False
 LOCAL_MODEL_PATH = "path/to/your/ollama_export"
 
 # Sampling and generation parameters
-MAX_TOKENS = 32000
+MAX_TOKENS = 1024          # 👈 Kraftigt sänkt från 32000 för att minska GPU-minne
 TEMPERATURE = 0.7
 TOP_P = 0.9
 
@@ -29,8 +29,8 @@ CONVO_DIR = "lora_training/conversations"
 STATE_PATH = "state.json"
 
 # Training hyperparameters
-EPOCHS = 3
-BATCH_SIZE = 4
+EPOCHS = 2                 # 👈 Minska till 2 för snabbare körning
+BATCH_SIZE = 1             # 👈 Lägre batch för mindre VRAM
 LEARNING_RATE = 2e-4
-MAX_SEQ_LENGTH = 1024
-FP16 = True
+MAX_SEQ_LENGTH = 1024      # 👈 Matchar MAX_TOKENS
+FP16 = True                # 👈 Behåll så länge det inte skapar instability
