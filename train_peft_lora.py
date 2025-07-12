@@ -25,10 +25,11 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 # Paths och konstanter
 DATA_PATH = "lora_training/datasets/lumenorion_lora_shuffled.jsonl"
-OUTPUT_DIR = "peft/output_gemma_lora"
+OUTPUT_DIR = "peft/output_test_lora"
 CACHE_DIR = "models/gemma3n"
-MAX_EXAMPLES = 20
-MAX_STEPS = 50
+MAX_EXAMPLES = 2
+MAX_STEPS = 1
+MAX_TOKENS = 256
 
 print("🧭 Config:")
 print(f"  DATA_PATH:     {DATA_PATH}")
@@ -90,6 +91,9 @@ def tokenize(batch):
 print("✍️  Tokenizing...")
 dataset = dataset.map(tokenize, batched=True, num_proc=1)
 print("✅ Tokenization complete.")
+
+print("🔎 Sample token:", dataset[0]["input_ids"][:10])
+
 
 # Förbered träningsloop
 print("🚦 Starting manual training loop...")
