@@ -30,3 +30,26 @@ def save_conversation(dialogue):
         print(f"🗣️  Conversation saved to {filename}")
     except Exception as e:
         print(f"❌ Failed to save conversation: {e}")
+
+
+def load_recent_conversations(limit=50):
+    """
+    Laddar de senaste konversationerna som dicts med timestamp + dialogue.
+    Returnerar en lista sorterad nyast först.
+    """
+    try:
+        files = sorted(
+            [f for f in os.listdir(CONVO_DIR) if f.endswith(".json")],
+            key=lambda x: os.path.getmtime(os.path.join(CONVO_DIR, x)),
+            reverse=True
+        )
+        conversations = []
+        for filename in files[:limit]:
+            filepath = os.path.join(CONVO_DIR, filename)
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                conversations.append(data)
+        return conversations
+    except Exception as e:
+        print(f"❌ Failed to load conversations: {e}")
+        return []
