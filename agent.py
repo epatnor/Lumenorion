@@ -7,15 +7,15 @@ import re
 from datetime import datetime
 from core.peft_infer import generate_reply
 from convo_logger import save_conversation, load_recent_conversations
-from memory import init_db  # framtidssäkrat, körs inte om inte kallat
+from memory import init_db  # Safe to import even if unused directly
 
-# Suppress known noisy warnings from transformers / accelerate
+# 🛑 Dämpa störiga men ofarliga varningar från transformers/accelerate
 warnings.filterwarnings("ignore", message=".*flash attention.*", category=UserWarning)
 warnings.filterwarnings("ignore", message=".*offloaded to the cpu.*", category=UserWarning)
 
 STATE_PATH = "state.json"
 
-# Load state from JSON (for mood, dream focus etc.)
+# 🔄 Ladda samtalsstatus (drömfokus, sinnesstämning etc.)
 def load_state():
     if os.path.exists(STATE_PATH):
         try:
@@ -29,19 +29,24 @@ def load_state():
         "last_dream_excerpt": ""
     }
 
-# Try to recall something relevant from earlier conversations
+# 🧠 Försök hitta något relevant i tidigare samtal
 def retrieve_relevant_memory(user_input):
+    keywords = set(word for word in re.findall(r"\b\w+\b", user_input.lower()) if len(word) > 2)
     recent_convos = load_recent_conversations(limit=50)
-    keywords = set(re.findall(r"\b\w+\b", user_input.lower()))
+
     for convo in reversed(recent_convos):
         for entry in convo.get("dialogue", []):
             past_input = entry.get("user", "").lower()
             if any(word in past_input for word in keywords):
                 ts = convo.get("timestamp", "an earlier time")
-                return f"\nYou recall the user once said (on {ts}): \"{entry['user']}\"\nYou replied: \"{entry['lumenorion']}\"\n"
+                return (
+                    f"\nMemory fragment from {ts}:\n"
+                    f"User once said: \"{entry['user']}\"\n"
+                    f"You replied: \"{entry['lumenorion']}\"\n"
+                )
     return ""
 
-# Build prompt from user input and saved dream state
+# 🧾 Sätt ihop prompten som skickas till LLM
 def build_prompt(user_input, state):
     mood = state.get("mood", "neutral")
     focus = state.get("dream_focus") or "an undefined symbol"
@@ -56,15 +61,14 @@ def build_prompt(user_input, state):
     )
 
     dream_ref = f"You carry the feeling of a recent dream: {mood}, centered on '{focus}'.\n" if excerpt else ""
-    memory_snippet = retrieve_relevant_memory(user_input)
+    memory = retrieve_relevant_memory(user_input)
 
-    return f"{intro}{dream_ref}{memory_snippet}\nUser input:\n{user_input}\n\nReply:"
+    return f"{intro}{dream_ref}{memory}\nUser input:\n{user_input}\n\nReply:"
 
-# Main dialogue loop
+# 💬 Starta interaktiv session med användaren
 def run_agent():
     state = load_state()
     print("💬 Talk to Lumenorion (type 'exit' to quit)\n")
-
     dialogue = []
 
     while True:
