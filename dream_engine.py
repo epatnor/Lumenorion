@@ -24,7 +24,9 @@ def generate_dream():
     selected = random.sample(SEED_WORDS, k=random.randint(3, 5))
     prompt = (
         f"You are dreaming. In your dream, you encounter: {', '.join(selected)}.\n"
-        "Describe the dream in vivid and poetic detail. The dream doesn't need to make logical sense."
+        "Describe the dream in vivid and poetic detail using 1–2 paragraphs. "
+        "Keep it short and complete, no more than about 120 words. "
+        "The dream doesn't need to make logical sense."
     )
 
     print("🌙 Generating dream...")
@@ -32,19 +34,18 @@ def generate_dream():
     print(prompt + "\n")
 
     try:
-        # 🧠 Generera kortare drömtext
-        dream_text = generate_reply(prompt, max_tokens=200).strip()
+        # Tight cap to prevent runaway generations
+        raw_dream = generate_reply(prompt, max_new_tokens=150).strip()
+        dream_text = raw_dream  # No longer need to truncate manually
     except Exception as e:
         print(f"❌ Failed to generate dream: {e}")
         return
 
-    # ⏺️ Spara till databas + LoRA
+    # ⏺️ Save to DB and file
     save_dream(dream_text, selected, prompt)
 
-    # 💾 Spara till fil (för backup/träning)
     timestamp = datetime.datetime.now().isoformat()
     filename = os.path.join(LOGLORA_DIR, f"{timestamp.replace(':', '_')}.json")
-
     data = {
         "timestamp": timestamp,
         "prompt": prompt,
@@ -60,6 +61,7 @@ def generate_dream():
         print(f"❌ Failed to save dream to file: {e}")
 
     print_dream(dream_text)
+
 
 def print_dream(dream_text):
     print("\n🌌 Dream output:\n")
