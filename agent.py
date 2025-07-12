@@ -2,12 +2,12 @@
 
 import json
 import warnings
-import sys
+import os
+import re
 from datetime import datetime
 from core.peft_infer import generate_reply
-from convo_logger import save_conversation
+from convo_logger import save_conversation, load_recent_conversations
 from memory import init_db  # framtidssäkrat, körs inte om inte kallat
-import os
 
 # Suppress known noisy warnings from transformers / accelerate
 warnings.filterwarnings("ignore", message=".*flash attention.*", category=UserWarning)
@@ -29,12 +29,23 @@ def load_state():
         "last_dream_excerpt": ""
     }
 
+# Try to recall something relevant from earlier conversations
+def retrieve_relevant_memory(user_input):
+    recent_convos = load_recent_conversations(limit=50)
+    keywords = set(re.findall(r"\b\w+\b", user_input.lower()))
+    for convo in reversed(recent_convos):
+        for entry in convo.get("dialogue", []):
+            past_input = entry.get("user", "").lower()
+            if any(word in past_input for word in keywords):
+                ts = convo.get("timestamp", "an earlier time")
+                return f"\nYou recall the user once said (on {ts}): \"{entry['user']}\"\nYou replied: \"{entry['lumenorion']}\"\n"
+    return ""
+
 # Build prompt from user input and saved dream state
 def build_prompt(user_input, state):
     mood = state.get("mood", "neutral")
     focus = state.get("dream_focus") or "an undefined symbol"
     excerpt = state.get("last_dream_excerpt", "")
-
     if len(excerpt) > 250:
         excerpt = excerpt[:250] + "..."
 
@@ -44,13 +55,10 @@ def build_prompt(user_input, state):
         "Avoid excessive poetry or repetition. Prioritize honesty and directness.\n"
     )
 
-    dream_ref = f"\nYou carry the feeling of a recent dream: {mood}, centered on '{focus}'.\n" if excerpt else ""
-    return intro + dream_ref + f"\nUser input:\n{user_input}\n\nReply:"
+    dream_ref = f"You carry the feeling of a recent dream: {mood}, centered on '{focus}'.\n" if excerpt else ""
+    memory_snippet = retrieve_relevant_memory(user_input)
 
-# Optional future hook — auto-memories (not yet wired)
-def auto_save_to_memory(dialogue):
-    # Placeholder — optionally parse/summarize memory-worthy statements
-    pass
+    return f"{intro}{dream_ref}{memory_snippet}\nUser input:\n{user_input}\n\nReply:"
 
 # Main dialogue loop
 def run_agent():
@@ -75,8 +83,6 @@ def run_agent():
 
     if dialogue:
         save_conversation(dialogue)
-        # Optionally save memory later
-        # auto_save_to_memory(dialogue)
 
 if __name__ == "__main__":
     run_agent()
