@@ -30,6 +30,9 @@ MAX_STEPS = 50
 # Initiera enhet
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"🔧 Using device: {device}")
+if device.type == "cpu":
+    print("⚠️  Running on CPU — training will be much slower.")
+
 
 # Ladda tokenizer och basmodell
 print("📦 Loading model & tokenizer...")
