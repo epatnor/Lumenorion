@@ -130,13 +130,13 @@ try:
 
         loss = outputs.loss
         print(f"📉 Loss: {loss.item():.4f}")
-        print("🔁 Backward pass...")
+        print("🔁 Backward pass...", flush=True)
         loss.backward()
 
-        print("🔧 Optimizer step...")
+        print("🔧 Optimizer step...", flush=True)
         optimizer.step()
 
-        print("🧹 Zeroing gradients...")
+        print("🧹 Zeroing gradients...", flush=True)
         optimizer.zero_grad()
 
         step_end = time.time()
