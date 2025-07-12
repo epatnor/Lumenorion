@@ -5,11 +5,10 @@ from peft import PeftModel, PeftConfig
 import torch
 from config import LORA_DIR, TEMPERATURE, TOP_P, MAX_TOKENS
 
-# Load PEFT config to determine base model
+# 🧠 Ladda LoRA-konfiguration och basmodell
 peft_config = PeftConfig.from_pretrained(LORA_DIR)
 base_model_name = peft_config.base_model_name_or_path
 
-# Load tokenizer and base model
 tokenizer = AutoTokenizer.from_pretrained(base_model_name)
 base_model = AutoModelForCausalLM.from_pretrained(
     base_model_name,
@@ -17,16 +16,20 @@ base_model = AutoModelForCausalLM.from_pretrained(
     device_map="auto"
 )
 
-# Apply LoRA adapter
+# 🪄 Applicera LoRA-adapter
 model = PeftModel.from_pretrained(base_model, LORA_DIR)
 model.eval()
 
-# Generate response from a prompt
-def generate_reply(prompt, max_new_tokens=200, temperature=TEMPERATURE):
+# 🗨️ Generera svar från prompt
+def generate_reply(prompt, max_new_tokens=None, temperature=TEMPERATURE):
+    max_new_tokens = max_new_tokens or MAX_TOKENS
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # 🔧 Tokenisera input och flytta till rätt enhet
     inputs = tokenizer(prompt, return_tensors="pt").to(device)
     model.to(device)
 
+    # 🚀 Generera text
     with torch.no_grad():
         output = model.generate(
             **inputs,
@@ -37,5 +40,7 @@ def generate_reply(prompt, max_new_tokens=200, temperature=TEMPERATURE):
             repetition_penalty=1.1
         )
 
-    full_output = tokenizer.decode(output[0], skip_special_tokens=True)
-    return full_output[len(prompt):].strip()
+    # ✂️ Extrahera endast svaret (trunkera bort prompten)
+    decoded = tokenizer.decode(output[0], skip_special_tokens=True)
+    reply = decoded[len(prompt):].strip()
+    return reply
