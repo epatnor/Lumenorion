@@ -5,10 +5,11 @@ import json
 import random
 import datetime
 import warnings
+import time
 from memory import save_dream
 from core.peft_infer import generate_reply
 
-# 🔕 Tysta störande varningar från transformers/accelerate
+# 🔕 Tysta varningar från transformers/accelerate
 warnings.filterwarnings("ignore", category=UserWarning)
 
 # 🌌 Fröord som inspirerar drömmen
@@ -19,6 +20,14 @@ SEED_WORDS = [
 
 LOGLORA_DIR = "lora_training/dreams"
 os.makedirs(LOGLORA_DIR, exist_ok=True)
+
+# ✨ Textbaserad progressbar för visuell känsla
+def show_dream_progress(duration=4):
+    frames = ["  ", ". ", "* ", "✨", " *", " .", "  "]
+    for i in range(28):
+        print(f"\r💤 Dreaming {frames[i % len(frames)]}", end="", flush=True)
+        time.sleep(duration / 28)
+    print("\r", end="")
 
 def generate_dream():
     selected = random.sample(SEED_WORDS, k=random.randint(3, 5))
@@ -33,17 +42,18 @@ def generate_dream():
     print("📝 Prompt:")
     print(prompt + "\n")
 
+    show_dream_progress()
+
     try:
-        # Tight cap to prevent runaway generations
-        raw_dream = generate_reply(prompt, max_new_tokens=150).strip()
-        dream_text = raw_dream  # No longer need to truncate manually
+        dream_text = generate_reply(prompt, max_tokens=150).strip()
     except Exception as e:
-        print(f"❌ Failed to generate dream: {e}")
+        print(f"\n❌ Failed to generate dream: {e}")
         return
 
-    # ⏺️ Save to DB and file
+    # ⏺️ Spara till databas + LoRA
     save_dream(dream_text, selected, prompt)
 
+    # 💾 Spara till fil
     timestamp = datetime.datetime.now().isoformat()
     filename = os.path.join(LOGLORA_DIR, f"{timestamp.replace(':', '_')}.json")
     data = {
@@ -61,7 +71,6 @@ def generate_dream():
         print(f"❌ Failed to save dream to file: {e}")
 
     print_dream(dream_text)
-
 
 def print_dream(dream_text):
     print("\n🌌 Dream output:\n")
