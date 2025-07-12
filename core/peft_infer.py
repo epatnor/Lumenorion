@@ -5,11 +5,15 @@ from peft import PeftModel, PeftConfig
 import torch
 from config import LORA_DIR, TEMPERATURE, TOP_P, MAX_TOKENS
 
-# 🧠 Ladda LoRA-konfiguration och basmodell
+# ======================
+# 🔧 Modellinitialisering
+# ======================
+
+# 🧠 Ladda LoRA-konfiguration och identifiera basmodell
 peft_config = PeftConfig.from_pretrained(LORA_DIR)
 base_model_name = peft_config.base_model_name_or_path
 
-# 🔤 Tokenizer och basmodell
+# 🔤 Ladda tokenizer och basmodell
 tokenizer = AutoTokenizer.from_pretrained(base_model_name)
 base_model = AutoModelForCausalLM.from_pretrained(
     base_model_name,
@@ -17,20 +21,31 @@ base_model = AutoModelForCausalLM.from_pretrained(
     device_map="auto"
 )
 
-# 🪄 Applicera LoRA-adapter
+# 🪄 Ladda och applicera LoRA-adapter
 model = PeftModel.from_pretrained(base_model, LORA_DIR)
 model.eval()
 
-# 🗨️ Generera svar från prompt
+# ======================
+# 💬 Textgenerering
+# ======================
+
 def generate_reply(prompt, max_tokens=None, temperature=TEMPERATURE):
+    """
+    Generera ett svar från modellen givet en prompt.
+    :param prompt: Sträng med användarens prompt
+    :param max_tokens: Max antal nya tokens att generera (standard tas från config)
+    :param temperature: Temperatur för sampling (default från config)
+    :return: Modellens svar som sträng
+    """
     max_tokens = max_tokens or MAX_TOKENS
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # 🔧 Tokenisera input och flytta till rätt enhet
+    # 🔁 Förbered inputs och flytta till device
     inputs = tokenizer(prompt, return_tensors="pt").to(device)
-    model.to(device)
+    if next(model.parameters()).device != device:
+        model.to(device)
 
-    # 🚀 Generera text
+    # 🚀 Generera svar utan gradientspårning
     with torch.no_grad():
         output = model.generate(
             **inputs,
@@ -41,7 +56,7 @@ def generate_reply(prompt, max_tokens=None, temperature=TEMPERATURE):
             repetition_penalty=1.1
         )
 
-    # ✂️ Extrahera endast svaret (trunkera bort prompten)
+    # ✂️ Plocka bort prompten från outputen
     decoded = tokenizer.decode(output[0], skip_special_tokens=True)
     reply = decoded[len(prompt):].strip()
     return reply
