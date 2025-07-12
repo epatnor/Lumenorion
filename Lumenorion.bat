@@ -3,9 +3,12 @@ setlocal enabledelayedexpansion
 
 :: == Initial startup ==
 echo 🔧 Starting Lumenorion...
-echo 🔄 Resetting local changes and pulling latest...
-git reset --hard >nul 2>&1
-git pull >nul 2>&1
+
+echo 🔄 Resetting local changes...
+git reset --hard
+
+echo 🔄 Pulling latest changes from GitHub...
+git pull
 
 :: == Check Python ==
 where python >nul 2>&1
@@ -47,10 +50,7 @@ if not exist requirements.txt (
     exit /b
 )
 
-:: Try CUDA pip install first, fall back to default if it fails
 pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cu121 || pip install -r requirements.txt
-
-:: Force compatible NumPy version
 pip install -q "numpy<2"
 
 if errorlevel 1 (
@@ -113,11 +113,11 @@ if "!choice!"=="2" (
 
 if "!choice!"=="3" (
     echo.
-    if exist "train_lora.py" (
+    if exist "train_peft_lora.py" (
         echo 🔬 Training LoRA model...
-        python train_lora.py || echo ❌ Failed to train LoRA
+        python train_peft_lora.py || echo ❌ Failed to train LoRA
     ) else (
-        echo ❌ train_lora.py not found!
+        echo ❌ train_peft_lora.py not found!
     )
     echo.
     pause
