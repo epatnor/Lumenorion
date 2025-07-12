@@ -117,8 +117,8 @@ try:
 
         print(f"📦 Batch keys: {list(batch.keys())}")
 
-        input_ids = torch.tensor(batch["input_ids"], dtype=torch.long).to(device)
-        attention_mask = torch.tensor(batch["attention_mask"], dtype=torch.long).to(device)
+        input_ids = batch["input_ids"].to(device)
+        attention_mask = batch["attention_mask"].to(device)
 
         if input_ids.ndim == 1:
             print("⚠️ input_ids is 1D, unsqueezing...")
