@@ -107,41 +107,40 @@ try:
         input_ids = batch["input_ids"]
         attention_mask = batch["attention_mask"]
 
-                # Gör robust konvertering (accepterar även vanliga listor av listor eller ints)
-                if isinstance(input_ids, list):
-                    print("⚠️ input_ids is list, converting to tensors...")
-                    try:
-                        input_ids = [
-                            torch.tensor(x, dtype=torch.long) if not isinstance(x, torch.Tensor) else x
-                            for x in input_ids
-                        ]
-                        if all(x.ndim == 1 for x in input_ids):
-                            input_ids = torch.stack(input_ids, dim=0)
-                        else:
-                            raise ValueError("❌ Each input_ids item must be 1D")
-                    except Exception as e:
-                        raise ValueError(f"❌ Failed to convert input_ids: {e}")
-        
-                if isinstance(attention_mask, list):
-                    print("⚠️ attention_mask is list, converting to tensors...")
-                    try:
-                        attention_mask = [
-                            torch.tensor(x, dtype=torch.long) if not isinstance(x, torch.Tensor) else x
-                            for x in attention_mask
-                        ]
-                        if all(x.ndim == 1 for x in attention_mask):
-                            attention_mask = torch.stack(attention_mask, dim=0)
-                        else:
-                            raise ValueError("❌ Each attention_mask item must be 1D")
-                    except Exception as e:
-                        raise ValueError(f"❌ Failed to convert attention_mask: {e}")
-        
-                input_ids = input_ids.to(device)
-                attention_mask = attention_mask.to(device)
-        
-                print(f"🔢 Batch shape: {input_ids.shape}")
-                print("🧠 Forward pass...")
+        # Gör robust konvertering (accepterar även vanliga listor av listor eller ints)
+        if isinstance(input_ids, list):
+            print("⚠️ input_ids is list, converting to tensors...")
+            try:
+                input_ids = [
+                    torch.tensor(x, dtype=torch.long) if not isinstance(x, torch.Tensor) else x
+                    for x in input_ids
+                ]
+                if all(x.ndim == 1 for x in input_ids):
+                    input_ids = torch.stack(input_ids, dim=0)
+                else:
+                    raise ValueError("❌ Each input_ids item must be 1D")
+            except Exception as e:
+                raise ValueError(f"❌ Failed to convert input_ids: {e}")
 
+        if isinstance(attention_mask, list):
+            print("⚠️ attention_mask is list, converting to tensors...")
+            try:
+                attention_mask = [
+                    torch.tensor(x, dtype=torch.long) if not isinstance(x, torch.Tensor) else x
+                    for x in attention_mask
+                ]
+                if all(x.ndim == 1 for x in attention_mask):
+                    attention_mask = torch.stack(attention_mask, dim=0)
+                else:
+                    raise ValueError("❌ Each attention_mask item must be 1D")
+            except Exception as e:
+                raise ValueError(f"❌ Failed to convert attention_mask: {e}")
+
+        input_ids = input_ids.to(device)
+        attention_mask = attention_mask.to(device)
+
+        print(f"🔢 Batch shape: {input_ids.shape}")
+        print("🧠 Forward pass...")
 
         outputs = model(
             input_ids=input_ids,
