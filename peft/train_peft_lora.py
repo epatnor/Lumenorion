@@ -8,31 +8,32 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(ROOT_DIR)
 
 # HuggingFace & PEFT
-from transformers import AutoTokenizer, AutoModelForCausalLM, Trainer, TrainingArguments
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import LoraConfig, get_peft_model, TaskType
 from datasets import load_dataset
+from torch.utils.data import DataLoader
 
 # Project config
 from config import BASE_MODEL, MAX_TOKENS
 
-
-# == Loggfix ==
+# Loggfix
 sys.stdout.reconfigure(line_buffering=True)
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-# == Paths ==
+# Paths och konstanter
 DATA_PATH = "lora_training/datasets/lumenorion_lora_shuffled.jsonl"
 OUTPUT_DIR = "peft/output_gemma_lora"
 CACHE_DIR = "models/gemma3n"
-MAX_EXAMPLES = 20  # Fail-safe för test
+MAX_EXAMPLES = 20
+MAX_STEPS = 50
 
-print("📦 Loading tokenizer and base model...")
-
-tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL, cache_dir=CACHE_DIR)
-
+# Initiera enhet
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"🔧 Using device: {device}")
 
+# Ladda tokenizer och basmodell
+print("📦 Loading model & tokenizer...")
+tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL, cache_dir=CACHE_DIR)
 model = AutoModelForCausalLM.from_pretrained(
     BASE_MODEL,
     cache_dir=CACHE_DIR,
@@ -40,11 +41,10 @@ model = AutoModelForCausalLM.from_pretrained(
     low_cpu_mem_usage=True,
     torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
 ).to(device)
-
 print(f"✅ Model loaded on: {next(model.parameters()).device}")
 
-# == LoRA config ==
-print("⚙️  Applying LoRA configuration...")
+# Applicera LoRA-konfiguration
+print("⚙️  Applying LoRA config...")
 config = LoraConfig(
     r=4,
     lora_dropout=0.05,
@@ -52,17 +52,19 @@ config = LoraConfig(
     task_type=TaskType.CAUSAL_LM,
     target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]
 )
-lora_model = get_peft_model(model, config).to(device)
+model = get_peft_model(model, config).to(device)
 print("✅ LoRA model wrapped.")
 
-# == Dataset ==
+# Ladda dataset
 print("📝 Loading dataset...")
 dataset = load_dataset("json", data_files=DATA_PATH)["train"]
 print(f"📊 Loaded dataset: {len(dataset)} examples")
 
+# Begränsa dataset för testkörning
 dataset = dataset.select(range(min(len(dataset), MAX_EXAMPLES)))
 print(f"📉 Trimmed to {len(dataset)} examples for test run")
 
+# Tokenisera exempel
 def tokenize(batch):
     texts = []
     for input_text, output_text in zip(batch["input"], batch["output"]):
@@ -77,37 +79,38 @@ print("✍️  Tokenizing...")
 dataset = dataset.map(tokenize, batched=True, num_proc=1)
 print("✅ Tokenization complete.")
 
-# == Training args ==
-print("🚦 Setting up training arguments...")
-training_args = TrainingArguments(
-    output_dir=OUTPUT_DIR,
-    per_device_train_batch_size=1,
-    num_train_epochs=1,
-    max_steps=50,  # Failsafe!
-    learning_rate=2e-4,
-    fp16=torch.cuda.is_available(),
-    gradient_checkpointing=True,
-    save_total_limit=1,
-    save_steps=25,
-    logging_steps=1,
-    report_to="none",
-    disable_tqdm=False,
-    log_level="info",
-    logging_dir="lora_training/logs_train/tensorboard"
-)
+# Förbered träningsloop
+print("🚦 Starting manual training loop...")
+model.train()
+loader = DataLoader(dataset, batch_size=1)
+optimizer = torch.optim.AdamW(model.parameters(), lr=2e-4)
 
-# == Trainer ==
-trainer = Trainer(
-    model=lora_model,
-    args=training_args,
-    train_dataset=dataset
-)
-
-# == Run training ==
-print("🚀 Starting training...")
+# Utför träning med tydlig feedback varje steg
 try:
-    trainer.train()
+    for step, batch in enumerate(loader):
+        if step >= MAX_STEPS:
+            print("⏹️ Max steps reached. Stopping.")
+            break
+
+        input_ids = torch.tensor(batch["input_ids"]).to(device)
+        attention_mask = torch.tensor(batch["attention_mask"]).to(device)
+        labels = input_ids.clone()
+
+        outputs = model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            labels=labels
+        )
+
+        loss = outputs.loss
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+
+        print(f"🔁 Step {step+1}/{MAX_STEPS} | Loss: {loss.item():.4f}")
+
     print("✅ Training complete.")
+
 except KeyboardInterrupt:
     print("⏹️ Interrupted by user.")
 except Exception as e:
@@ -115,7 +118,7 @@ except Exception as e:
     traceback.print_exc()
     sys.exit(1)
 
-# == Save LoRA model ==
+# Spara tränad LoRA-adapter
 print(f"💾 Saving to: {OUTPUT_DIR}")
-lora_model.save_pretrained(OUTPUT_DIR)
-print("✅ Done.")
+model.save_pretrained(OUTPUT_DIR)
+print("✅ LoRA saved.")
