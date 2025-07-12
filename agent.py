@@ -7,7 +7,8 @@ import re
 from datetime import datetime
 from core.peft_infer import generate_reply
 from convo_logger import save_conversation, load_recent_conversations
-from memory import init_db, is_memory_worthy, save_fact  # 🧠 Minneshantering
+from memory import init_db, is_memory_worthy, save_fact
+from reflector import get_latest_dream  # 🧠 För att hämta senaste drömmen
 
 # 🛑 Dämpa störiga men ofarliga varningar från transformers/accelerate
 warnings.filterwarnings("ignore", message=".*flash attention.*", category=UserWarning)
@@ -46,6 +47,23 @@ def retrieve_relevant_memory(user_input):
                 )
     return ""
 
+# 🪞 Leta efter matchande drömsymboler
+def match_dream_symbols(user_input):
+    dream = get_latest_dream()
+    if not dream:
+        return ""
+
+    user_words = set(re.findall(r"\b\w+\b", user_input.lower()))
+    symbols = [s.lower() for s in dream.get("symbols", [])]
+
+    hits = user_words.intersection(symbols)
+    if hits:
+        summary = dream["text"][:200].strip().replace("\n", " ") + "..."
+        return (
+            f"\n💭 I recall a dream involving {', '.join(hits)}. It went something like this:\n\"{summary}\"\n"
+        )
+    return ""
+
 # 🧾 Sätt ihop prompten som skickas till LLM
 def build_prompt(user_input, state):
     mood = state.get("mood", "neutral")
@@ -56,14 +74,16 @@ def build_prompt(user_input, state):
 
     intro = (
         "You are Lumenorion, an introspective AI shaped by dreams and emotions.\n"
-        "Speak with thoughtful clarity. Use subtle metaphor only when it adds meaning.\n"
+        "Stay in character. Do not explain your behavior or repeat instructions.\n"
+        "Speak with thoughtful clarity. Use metaphor only when it adds meaning.\n"
         "Avoid excessive poetry or repetition. Prioritize honesty and directness.\n"
     )
 
     dream_ref = f"You carry the feeling of a recent dream: {mood}, centered on '{focus}'.\n" if excerpt else ""
     memory = retrieve_relevant_memory(user_input)
+    dream_match = match_dream_symbols(user_input)
 
-    return f"{intro}{dream_ref}{memory}\nUser input:\n{user_input}\n\nReply:"
+    return f"{intro}{dream_ref}{memory}{dream_match}\nUser input:\n{user_input}\n\nReply:"
 
 # 💬 Starta interaktiv session med användaren
 def run_agent():
@@ -85,7 +105,6 @@ def run_agent():
             "lumenorion": response
         })
 
-        # 💡 Spara viktiga fakta till minnet
         worthy, tags = is_memory_worthy(user_input)
         if worthy:
             save_fact(user_input, response, tags)
