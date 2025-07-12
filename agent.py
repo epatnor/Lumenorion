@@ -7,7 +7,7 @@ import re
 from datetime import datetime
 from core.peft_infer import generate_reply
 from convo_logger import save_conversation, load_recent_conversations
-from memory import init_db  # Safe to import even if unused directly
+from memory import init_db, is_memory_worthy, save_fact  # 🧠 Minneshantering
 
 # 🛑 Dämpa störiga men ofarliga varningar från transformers/accelerate
 warnings.filterwarnings("ignore", message=".*flash attention.*", category=UserWarning)
@@ -77,13 +77,18 @@ def run_agent():
             break
 
         prompt = build_prompt(user_input, state)
-        response = generate_reply(prompt)
-        print(f"\nLumenorion: {response.strip()}\n")
+        response = generate_reply(prompt).strip()
+        print(f"\nLumenorion: {response}\n")
 
         dialogue.append({
             "user": user_input,
-            "lumenorion": response.strip()
+            "lumenorion": response
         })
+
+        # 💡 Spara viktiga fakta till minnet
+        worthy, tags = is_memory_worthy(user_input)
+        if worthy:
+            save_fact(user_input, response, tags)
 
     if dialogue:
         save_conversation(dialogue)
