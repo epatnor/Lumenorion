@@ -29,8 +29,8 @@ CONVO_DIR = "lora_training/conversations"
 STATE_PATH = "state.json"
 
 # Training hyperparameters
-EPOCHS = 2                 # 👈 Minska till 2 för snabbare körning
-BATCH_SIZE = 1             # 👈 Lägre batch för mindre VRAM
-LEARNING_RATE = 2e-4
-MAX_SEQ_LENGTH = 1024      # 👈 Matchar MAX_TOKENS
-FP16 = True                # 👈 Behåll så länge det inte skapar instability
+EPOCHS = 1             # 👈 Endast 1 epoch vid testkörning, kan höjas sen
+BATCH_SIZE = 1         # ✅ Redan optimalt för låg VRAM
+LEARNING_RATE = 1e-4   # 👈 Lägre learning rate för mindre volatila FP16-beräkningar
+MAX_SEQ_LENGTH = 512   # 👈 Vid ännu tightare VRAM – matcha med MAX_TOKENS
+FP16 = True            # ✅ Behåll
