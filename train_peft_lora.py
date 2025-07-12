@@ -33,7 +33,6 @@ print(f"🔧 Using device: {device}")
 if device.type == "cpu":
     print("⚠️  Running on CPU — training will be much slower.")
 
-
 # Ladda tokenizer och basmodell
 print("📦 Loading model & tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL, cache_dir=CACHE_DIR)
@@ -91,17 +90,25 @@ optimizer = torch.optim.AdamW(model.parameters(), lr=2e-4)
 # Utför träning med tydlig feedback varje steg
 try:
     for step, batch in enumerate(loader):
+        print(f"➡️ Step {step+1}/{MAX_STEPS}")
+
         if step >= MAX_STEPS:
             print("⏹️ Max steps reached. Stopping.")
             break
 
+        # Kontroll: logga batch shape
+        print(f"📦 Batch keys: {list(batch.keys())}")
+
         input_ids = batch["input_ids"][0]
         attention_mask = batch["attention_mask"][0]
-        
+
+        print(f"🔢 Input shape: {len(input_ids)} tokens")
+
         input_ids = torch.tensor([input_ids], dtype=torch.long).to(device)
         attention_mask = torch.tensor([attention_mask], dtype=torch.long).to(device)
         labels = input_ids.clone()
 
+        print("🧠 Forward pass...")
         outputs = model(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -109,13 +116,14 @@ try:
         )
 
         loss = outputs.loss
+        print(f"📉 Loss: {loss.item():.4f}")
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
 
-        print(f"🔁 Step {step+1}/{MAX_STEPS} | Loss: {loss.item():.4f}")
+        print(f"✅ Step {step+1} complete\n")
 
-    print("✅ Training complete.")
+    print("🎉 Training complete.")
 
 except KeyboardInterrupt:
     print("⏹️ Interrupted by user.")
@@ -126,5 +134,6 @@ except Exception as e:
 
 # Spara tränad LoRA-adapter
 print(f"💾 Saving to: {OUTPUT_DIR}")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 model.save_pretrained(OUTPUT_DIR)
 print("✅ LoRA saved.")
