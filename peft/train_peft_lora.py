@@ -95,8 +95,11 @@ try:
             print("⏹️ Max steps reached. Stopping.")
             break
 
-        input_ids = torch.tensor(batch["input_ids"]).to(device)
-        attention_mask = torch.tensor(batch["attention_mask"]).to(device)
+        input_ids = batch["input_ids"][0]
+        attention_mask = batch["attention_mask"][0]
+        
+        input_ids = torch.tensor([input_ids], dtype=torch.long).to(device)
+        attention_mask = torch.tensor([attention_mask], dtype=torch.long).to(device)
         labels = input_ids.clone()
 
         outputs = model(
