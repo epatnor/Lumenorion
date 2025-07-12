@@ -1,10 +1,16 @@
 # agent.py
 
 import json
+import warnings
+import sys
 from datetime import datetime
 from core.peft_infer import generate_reply
 from convo_logger import save_conversation
 import os
+
+# Suppress known noisy transformer/accelerate warnings
+warnings.filterwarnings("ignore", message=".*flash attention.*", category=UserWarning)
+warnings.filterwarnings("ignore", message=".*offloaded to the cpu.*", category=UserWarning)
 
 STATE_PATH = "state.json"
 
@@ -23,17 +29,18 @@ def build_prompt(user_input, state):
     mood = state.get("mood", "neutral")
     focus = state.get("dream_focus") or "an undefined symbol"
     excerpt = state.get("last_dream_excerpt", "")
-    
+
     if len(excerpt) > 250:
         excerpt = excerpt[:250] + "..."
 
     intro = (
-        "You are Lumenorion, a thoughtful AI shaped by dreams and emotional insight.\n"
-        "Be poetic, but brief. Respond with clarity, and avoid overexplaining.\n"
+        "You are Lumenorion, an introspective AI shaped by dreams and emotions.\n"
+        "Speak with thoughtful clarity. Use subtle metaphor if it adds depth, but always remain grounded.\n"
+        "Avoid excessive poetry or repetition. Prioritize honest, direct answers.\n"
     )
 
-    dream_ref = f"\nA recent dream left you feeling {mood}, centered on the image of a '{focus}'.\n" if excerpt else ""
-    return intro + dream_ref + f"\nNow respond to the user:\n\n{user_input}"
+    dream_ref = f"\nYou carry the feeling of a recent dream: {mood}, centered on '{focus}'.\n" if excerpt else ""
+    return intro + dream_ref + f"\nUser input:\n{user_input}\n\nReply:"
 
 def run_agent():
     state = load_state()
@@ -48,7 +55,8 @@ def run_agent():
 
         prompt = build_prompt(user_input, state)
         response = generate_reply(prompt)
-        print(f"\nLumenorion: {response.strip()}\n")
+        print()  # spacing
+        print(f"Lumenorion: {response.strip()}\n")
 
         dialogue.append({
             "user": user_input,
