@@ -25,11 +25,14 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 # Paths och konstanter
 DATA_PATH = "lora_training/datasets/lumenorion_lora_shuffled.jsonl"
-OUTPUT_DIR = "peft/output_test_lora"
+OUTPUT_DIR = OUTPUT_DIR = "lora_training/outputs/gemma3n_lora_test"
 CACHE_DIR = "models/gemma3n"
-MAX_EXAMPLES = 2
-MAX_STEPS = 1
+MAX_EXAMPLES = 40
+MAX_STEPS = 20
 MAX_TOKENS = 256
+BATCH_SIZE = 2
+LORA_R = 4
+LORA_DROPOUT = 0.05
 
 print("🧭 Config:")
 print(f"  DATA_PATH:     {DATA_PATH}")
@@ -37,6 +40,7 @@ print(f"  OUTPUT_DIR:    {OUTPUT_DIR}")
 print(f"  CACHE_DIR:     {CACHE_DIR}")
 print(f"  MAX_EXAMPLES:  {MAX_EXAMPLES}")
 print(f"  MAX_STEPS:     {MAX_STEPS}")
+print(f"  BATCH_SIZE:    {BATCH_SIZE}")
 
 # Initiera enhet
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -56,11 +60,15 @@ model = AutoModelForCausalLM.from_pretrained(
 ).to(device)
 print(f"✅ Model loaded on: {next(model.parameters()).device}")
 
+# Aktivera gradient checkpointing
+model.gradient_checkpointing_enable()
+print("🧠 Gradient checkpointing enabled.")
+
 # Applicera LoRA-konfiguration
 print("⚙️  Applying LoRA config...")
 config = LoraConfig(
-    r=4,
-    lora_dropout=0.05,
+    r=LORA_R,
+    lora_dropout=LORA_DROPOUT,
     bias="none",
     task_type=TaskType.CAUSAL_LM,
     target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]
@@ -91,17 +99,14 @@ def tokenize(batch):
 print("✍️  Tokenizing...")
 dataset = dataset.map(tokenize, batched=True, num_proc=1)
 print("✅ Tokenization complete.")
-
 print("🔎 Sample token:", dataset[0]["input_ids"][:10])
-
 
 # Förbered träningsloop
 print("🚦 Starting manual training loop...")
 model.train()
-loader = DataLoader(dataset, batch_size=1)
+loader = DataLoader(dataset, batch_size=BATCH_SIZE)
 optimizer = torch.optim.AdamW(model.parameters(), lr=2e-4)
 
-# Utför träning med tydlig feedback varje steg
 try:
     for step, batch in enumerate(loader):
         print(f"➡️ Step {step+1}/{MAX_STEPS}")
@@ -115,7 +120,6 @@ try:
         input_ids = torch.tensor(batch["input_ids"], dtype=torch.long).to(device)
         attention_mask = torch.tensor(batch["attention_mask"], dtype=torch.long).to(device)
 
-        # Kontrollera att shape är [batch_size, seq_len]
         if input_ids.ndim == 1:
             print("⚠️ input_ids is 1D, unsqueezing...")
             input_ids = input_ids.unsqueeze(0)
@@ -139,6 +143,7 @@ try:
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
+        torch.cuda.empty_cache()
 
         print(f"✅ Step {step+1} complete\n")
 
@@ -150,7 +155,6 @@ except Exception as e:
     print("❌ Training failed:")
     traceback.print_exc()
     sys.exit(1)
-
 
 # Spara tränad LoRA-adapter
 print(f"💾 Saving to: {OUTPUT_DIR}")
