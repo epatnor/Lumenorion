@@ -104,8 +104,19 @@ try:
 
         print(f"➡️ Step {step+1}/{MAX_STEPS}")
 
-        input_ids = torch.tensor(batch["input_ids"], dtype=torch.long).to(device)
-        attention_mask = torch.tensor(batch["attention_mask"], dtype=torch.long).to(device)
+        # Hantera batch oavsett typ (list eller tensor)
+        input_ids = batch["input_ids"]
+        attention_mask = batch["attention_mask"]
+
+        if isinstance(input_ids, list):
+            print("⚠️ input_ids is list, converting to tensor...")
+            input_ids = torch.tensor(input_ids, dtype=torch.long)
+        if isinstance(attention_mask, list):
+            print("⚠️ attention_mask is list, converting to tensor...")
+            attention_mask = torch.tensor(attention_mask, dtype=torch.long)
+
+        input_ids = input_ids.to(device)
+        attention_mask = attention_mask.to(device)
 
         if input_ids.ndim == 1:
             input_ids = input_ids.unsqueeze(0)
@@ -136,13 +147,14 @@ except Exception:
     traceback.print_exc()
     sys.exit(1)
 
-# == Save ==
-print("💾 Saving to:", OUTPUT_DIR)
+# == Post-training ==
+if interrupted:
+    print("⚠️ Training was interrupted before completion.")
+else:
+    print("🎉 Training complete.")
+
+# Save trained LoRA
+print(f"💾 Saving to: {OUTPUT_DIR}")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 model.save_pretrained(OUTPUT_DIR)
 print("✅ LoRA saved.")
-
-if not interrupted:
-    print("🎉 Training complete.")
-else:
-    print("⚠️ Training incomplete — saved partial result.")
